@@ -13,7 +13,7 @@ This skill:
 - reads recent Strava activity data
 - summarizes key workout metrics
 - produces a short roast or playful recap
-- supports different tones for scheduled or on-demand use
+- supports different tones and spice levels for scheduled or on-demand use
 
 ## Script usage
 
@@ -21,8 +21,9 @@ Run the bundled script:
 
 ```bash
 python {baseDir}/scripts/strava_roast.py roast
-python {baseDir}/scripts/strava_roast.py roast --tone dry
-python {baseDir}/scripts/strava_roast.py roast --tone savage
+python {baseDir}/scripts/strava_roast.py roast --tone dry --spice 1
+python {baseDir}/scripts/strava_roast.py roast --tone playful --spice 2
+python {baseDir}/scripts/strava_roast.py roast --tone savage --spice 3
 python {baseDir}/scripts/strava_roast.py summary --json --pretty
 ```
 
@@ -47,6 +48,14 @@ Supported tones:
 - `playful`
 - `savage`
 - `coach`
+
+## Spice
+
+Spice controls roast intensity:
+- `0` — gentle
+- `1` — light tease
+- `2` — proper roast
+- `3` — scorched earth
 
 ## References
 

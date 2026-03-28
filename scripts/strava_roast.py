@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--days", type=int, default=2, help="Look back N days for recent activity")
     p.add_argument("--limit", type=int, default=3, help="Max activities to fetch")
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
+    p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=1, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
     return p
@@ -92,44 +93,93 @@ def summarize_activity(a: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def roast_line(summary: dict[str, Any], tone: str) -> str:
-    sport = summary['sport']
-    name = summary['name']
-    dist = summary['distance_km']
-    mins = summary['moving_min']
-    elev = summary['elev_m']
-    kudos = summary['kudos']
-    suffer = summary['suffer']
-    avg_hr = summary['avg_hr']
-    trainer = summary['trainer']
-
-    if tone == 'dry':
-        return f"{name}: {dist} km of {sport.lower()} in {mins} min. A very measured attempt at pretending this was all deliberate."
-    if tone == 'savage':
-        extra = f" {elev} m climbing just to make the poor decisions vertical." if elev else ""
-        return f"{name}: {dist} km in {mins} min.{extra} {kudos} kudos for effort, none for restraint."
+def line_for_run(s: dict[str, Any], tone: str, spice: int) -> str:
+    base = f"{s['name']}: {s['distance_km']} km in {s['moving_min']} min"
     if tone == 'coach':
-        hr = f" Avg HR {avg_hr}." if avg_hr else ""
-        suf = f" Suffer score {suffer}." if suffer else ""
-        return f"{name}: {dist} km in {mins} min.{hr}{suf} Solid work — now try being as disciplined with recovery as you are with self-inflicted fatigue."
-    if trainer:
-        return f"{name}: indoor {sport.lower()} for {mins} min. Same room, same legs, same audacity."
-    return f"{name}: {dist} km of {sport.lower()} in {mins} min with {kudos} kudos. Public evidence that cardio and questionable judgment can coexist beautifully."
+        return base + f". Useful work. Now try to recover like someone who plans to run again this century."
+    if tone == 'dry':
+        return base + ". A concise little appointment with gravity and self-imposed inconvenience."
+    if spice >= 3:
+        return base + f" with {s['elev_m']} m climbing. Remarkable commitment to making your own life harder on purpose."
+    if spice == 2:
+        return base + ". Efficient, uncomfortable, and exactly the kind of idea your legs will remember tomorrow."
+    if spice == 1:
+        return base + f" with {s['kudos']} kudos. Cardio, but make it publicly auditable."
+    return base + ". Nice work. Mildly heroic, acceptably unhinged."
 
 
-def roast_block(activities: list[dict[str, Any]], tone: str) -> str:
+def line_for_tennis(s: dict[str, Any], tone: str, spice: int) -> str:
+    base = f"{s['name']}: {s['moving_min']} min of tennis"
+    if spice >= 3:
+        return base + ". Competitive cardio disguised as leisure. A classic scam."
+    if spice == 2:
+        return base + ". Just enough running to be annoying, not enough to count as honesty."
+    if spice == 1:
+        return base + f" with {s['kudos']} kudos. Elegant little sprint intervals in polite clothing."
+    return base + ". Solid session. Civilized suffering with a racket."
+
+
+def line_for_weights(s: dict[str, Any], tone: str, spice: int) -> str:
+    base = f"{s['name']}: {s['moving_min']} min of weight training"
+    if tone == 'coach':
+        return base + ". Good. Lift the weight, keep the ego on a shorter leash."
+    if spice >= 3:
+        return base + ". Zero kilometres, maximum theatrical tension."
+    if spice == 2:
+        return base + ". Same room, same iron, same refusal to choose peace."
+    if spice == 1:
+        return base + ". Honest work. No scenery, just reps and consequences."
+    return base + ". Strong, sensible, and only moderately feral."
+
+
+def generic_line(s: dict[str, Any], tone: str, spice: int) -> str:
+    sport = s['sport'].lower()
+    base = f"{s['name']}: {s['distance_km']} km of {sport} in {s['moving_min']} min"
+    if spice >= 3:
+        return base + ". A creative new way to be tired for no financial reward."
+    if spice == 2:
+        return base + ". Public evidence that questionable judgment and endurance remain close friends."
+    if spice == 1:
+        return base + ". Respectable effort, lightly seasoned with chaos."
+    return base + ". Nice little outing."
+
+
+def roast_line(summary: dict[str, Any], tone: str, spice: int) -> str:
+    sport = summary['sport'].lower()
+    if 'run' in sport:
+        return line_for_run(summary, tone, spice)
+    if 'tennis' in sport:
+        return line_for_tennis(summary, tone, spice)
+    if 'weight' in sport or summary['trainer']:
+        return line_for_weights(summary, tone, spice)
+    return generic_line(summary, tone, spice)
+
+
+def overall_line(summaries: list[dict[str, Any]], spice: int) -> str:
+    total_km = round(sum(s['distance_km'] for s in summaries), 2)
+    total_min = sum(s['moving_min'] for s in summaries)
+    if spice >= 3:
+        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. An impressive amount of voluntary wear and tear."
+    if spice == 2:
+        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Productive, disciplined, and a little bit deranged."
+    if spice == 1:
+        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. A productive little festival of exertion."
+    return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Nicely done."
+
+
+def roast_block(activities: list[dict[str, Any]], tone: str, spice: int) -> str:
     if not activities:
-        if tone == 'savage':
-            return "No recent Strava activity. Incredible commitment to stealth mode."
-        if tone == 'coach':
-            return "No recent Strava activity found. Recovery is valid; disappearing entirely is less convincing."
-        return "No recent Strava activity found. Either you rested, or you committed your workout in witness protection."
+        if spice >= 3:
+            return "No recent Strava activity. Elite dedication to stealth mode."
+        if spice == 2:
+            return "No recent Strava activity found. Either rest day, or you buried the evidence well."
+        if spice == 1:
+            return "No recent Strava activity found. Recovery day or suspiciously quiet behaviour."
+        return "No recent Strava activity found. Rest counts too."
     summaries = [summarize_activity(a) for a in activities]
-    lines = [roast_line(s, tone) for s in summaries]
+    lines = [roast_line(s, tone, spice) for s in summaries]
     if len(summaries) > 1:
-        total_km = round(sum(s['distance_km'] for s in summaries), 2)
-        total_min = sum(s['moving_min'] for s in summaries)
-        lines.append(f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. A productive little festival of exertion.")
+        lines.append(overall_line(summaries, spice))
     return "\n".join(lines)
 
 
@@ -144,7 +194,12 @@ def main() -> int:
     if args.command == 'summary':
         payload: Any = {"activity_count": len(summaries), "activities": summaries}
     else:
-        payload = {"activity_count": len(summaries), "tone": args.tone, "roast": roast_block(activities, args.tone)}
+        payload = {
+            "activity_count": len(summaries),
+            "tone": args.tone,
+            "spice": args.spice,
+            "roast": roast_block(activities, args.tone, args.spice),
+        }
 
     if args.json:
         print(json.dumps(payload, indent=2 if args.pretty else None))

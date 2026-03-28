@@ -5,9 +5,10 @@ A portable AgentSkill for turning recent Strava activity into a funny daily roas
 ## What it does
 
 - fetches recent Strava activity
-- extracts a few useful metrics
+- extracts useful workout metrics
 - turns them into a short roast or recap
 - supports multiple tones like `dry`, `playful`, `savage`, and `coach`
+- supports a configurable `spice` level for how hard it hits
 
 ## Why it exists
 
@@ -26,15 +27,16 @@ This one is for the more important use case: lightly bullying your workout histo
 
 ```bash
 python scripts/strava_roast.py roast
-python scripts/strava_roast.py roast --tone dry
-python scripts/strava_roast.py roast --tone savage
+python scripts/strava_roast.py roast --tone dry --spice 1
+python scripts/strava_roast.py roast --tone playful --spice 2
+python scripts/strava_roast.py roast --tone savage --spice 3
 python scripts/strava_roast.py summary --json --pretty
 ```
 
 ## Example output
 
 ```text
-Lunch Run: 8.42 km of run in 46 min with 7 kudos. Public evidence that cardio and questionable judgment can coexist beautifully.
-Evening Tennis: 5.23 km of tennis in 52 min with 3 kudos. Public evidence that cardio and questionable judgment can coexist beautifully.
-Overall: 13.65 km across 2 activities and 98 moving minutes. A productive little festival of exertion.
+Lunch Run: 8.42 km in 46 min. Efficient, uncomfortable, and exactly the kind of idea your legs will remember tomorrow.
+Evening Tennis: 52 min of tennis. Just enough running to be annoying, not enough to count as honesty.
+Overall: 13.65 km across 2 activities and 98 moving minutes. Productive, disciplined, and a little bit deranged.
 ```

@@ -13,7 +13,7 @@ import strava_roast as sr  # type: ignore
 
 def main() -> int:
     activities = json.loads((ROOT / 'tests' / 'fixtures' / 'sample_activities.json').read_text())
-    roast = sr.roast_block(activities, 'playful')
+    roast = sr.roast_block(activities, 'playful', 1)
     assert 'Evening Tennis' in roast
     assert 'Lunch Run' in roast
     assert 'Overall:' in roast
@@ -22,7 +22,7 @@ def main() -> int:
     assert summary[0]['sport'] == 'Tennis'
     assert summary[1]['distance_km'] == 8.42
 
-    empty = sr.roast_block([], 'dry')
+    empty = sr.roast_block([], 'dry', 1)
     assert 'No recent Strava activity' in empty
 
     print('smoke test passed')
