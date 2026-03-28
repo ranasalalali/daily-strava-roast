@@ -1,3 +1,4 @@
 tests/fixtures_root/
 .venv/
 __pycache__/
+state/

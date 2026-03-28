@@ -441,6 +441,15 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
     return variants[spice % len(variants)]
 
 
+def choose_family(count: int, recent: list[dict[str, Any]], idx: int) -> int:
+    used = [r.get('family') for r in recent[-3:]]
+    candidates = list(range(count))
+    for fam in used:
+        if fam in candidates and len(candidates) > 1:
+            candidates.remove(fam)
+    return candidates[idx % len(candidates)]
+
+
 def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] | None = None, variation_seed: str | None = None) -> str:
     if not day:
         return no_activity_roast(tone, spice)
@@ -462,7 +471,8 @@ def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] 
             f"{effort} {social} {kicker}",
             f"{social} {opener} {effort}",
         ]
-        return families[idx % len(families)]
+        family_idx = choose_family(len(families), recent, idx)
+        return families[family_idx]
 
     # Distinct roast families instead of fragment shuffling
     families = [
@@ -484,7 +494,8 @@ def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] 
         # recurring-character style
         f"{opener} {kicker} {social}",
     ]
-    return families[idx % len(families)]
+    family_idx = choose_family(len(families), recent, idx)
+    return families[family_idx]
 
 
 def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
@@ -517,6 +528,7 @@ def main() -> int:
         if latest_day:
             state = load_state(Path(args.state_file).expanduser())
             roast = roast_day(latest_day, args.tone, args.spice, state, args.variation_seed)
+            family_idx = choose_family(6 if args.tone not in ('dry','coach') and args.spice != 0 else 3, state.get('recent', []), pattern_index(latest_day, args.tone, args.spice, args.variation_seed or f'run-{len(state.get("recent", []))}')) )
             remember_roast(Path(args.state_file).expanduser(), state, {
                 'at': datetime.now(timezone.utc).isoformat(),
                 'date': latest_day.get('date'),
@@ -524,6 +536,7 @@ def main() -> int:
                 'count': latest_day.get('count'),
                 'tone': args.tone,
                 'spice': args.spice,
+                'family': family_idx,
                 'roast': roast,
             })
         else:
