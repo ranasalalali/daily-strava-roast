@@ -1,0 +1,3 @@
+tests/fixtures_root/
+.venv/
+__pycache__/
