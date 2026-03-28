@@ -66,7 +66,7 @@ uv run --project . daily-strava-roast summary --json --pretty
 uv run --project . daily-strava-roast context --pretty
 uv run --project . daily-strava-roast prompt
 uv run --project . daily-strava-roast preview
-uv run --project . daily-strava-roast generate --generation-mode local --model-runner ollama --model llama3.2
+uv run --project . daily-strava-roast generate --model-runner ollama --model llama3.2
 uv run --project . daily-strava-roast roast
 ```
 
@@ -74,9 +74,9 @@ V2 staging note:
 - `context` emits the structured roast context JSON
 - `prompt` emits the constrained prompt text built from that context
 - `preview` emits a local preview paragraph from the V2 context/prompt path
-- `generate` is an explicit generation test path
-- `roast` now prefers connected-model generation by default and falls back to the deterministic V1 roast if generation is unavailable or fails
-- local model generation remains available via `--generation-mode local`
+- `generate` is an explicit local generation test path
+- `roast` remains deterministic in the packaged CLI
+- connected/default-model generation belongs to the OpenClaw runtime layer, not the standalone package CLI
 
 ## Script usage
 
