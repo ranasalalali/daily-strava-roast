@@ -335,76 +335,71 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
 
     if gap is not None and gap >= 180:
         variants = [
-            f"No activity today, and your last logged effort was {gap} days ago. At this point the training block hasn't gone quiet; it's entered folklore.",
-            f"Still nothing today. The last Strava entry was {gap} days ago, which means your fitness narrative is now mostly oral tradition.",
-            f"No activity today. Your last recorded workout was {gap} days ago, so this has drifted well past recovery and into archaeology.",
-            f"Quiet again. With a {gap}-day gap since the last activity, Strava is less a training log and more a historical archive.",
+            f"No activity today, and your last logged effort was {gap} days ago. At this point the training block hasn't gone quiet so much as slipped into folklore. If you came back tomorrow, even your own activity feed might react like it had seen a ghost.",
+            f"Still nothing today. The last Strava entry was {gap} days ago, which means your fitness narrative is now mostly oral tradition. We're well beyond recovery here; this is the sort of gap that makes old workouts sound mythological.",
+            f"No activity today. Your last recorded workout was {gap} days ago, so this has drifted clean past rest and into archaeology. Somewhere in the distance, your previous consistency is being discussed like a lost civilization.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap >= 90:
         variants = [
-            f"No activity today, and the last one was {gap} days ago. We're no longer in a quiet patch; we're in excavation season.",
-            f"Still quiet today. After {gap} days without a log, this has started to feel less like training and more like archive research.",
-            f"Nothing today, and the last workout was {gap} days ago. Even the motivation is probably covered in dust by now.",
+            f"No activity today, and the last one was {gap} days ago. We're no longer in a quiet patch; we're in excavation season. At this point Strava is less waiting for your return and more preserving the site.",
+            f"Still quiet today. After {gap} days without a log, this has started to feel less like training and more like archive research. The feed isn't stale so much as historically significant.",
+            f"Nothing today, and the last workout was {gap} days ago. Even the motivation is probably covered in dust by now. This isn't a pause; it's a museum wing.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap >= 30:
         variants = [
-            f"No activity today, and the last one was {gap} days ago. This is starting to feel less like a rest block and more like witness protection for cardio.",
-            f"Still quiet today. After {gap} days without a log, even Strava seems unsure whether to wait or move on.",
-            f"Nothing today, and the last workout was {gap} days ago. The storyline hasn't ended, but it has definitely wandered off between seasons.",
-            f"No activity today. A {gap}-day silence gives the whole feed the energy of an abandoned group project.",
+            f"No activity today, and the last one was {gap} days ago. This is starting to feel less like a rest block and more like witness protection for cardio. At some point even your training plan is going to stop texting first.",
+            f"Still quiet today. After {gap} days without a log, even Strava seems unsure whether to wait or move on. We're now well into the kind of silence that starts to develop personality.",
+            f"Nothing today, and the last workout was {gap} days ago. The storyline hasn't ended, but it has definitely wandered off between seasons. If this is still a plan, it's become a very abstract one.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap >= 14:
         variants = [
-            f"No activity today, and it's been {gap} days since the last log. At this point 'rest day' is being asked to do some heroic work.",
-            f"Still nothing today. With a {gap}-day gap, this has graduated from recovery into a proper little disappearance.",
-            f"Nothing on Strava today, and the last activity was {gap} days ago. That is no longer a pause; it's a storyline choice.",
+            f"No activity today, and it's been {gap} days since the last log. At this point 'rest day' is being asked to do some heroic work. We're edging into the kind of absence that starts needing an explanation, or at least a decent excuse.",
+            f"Still nothing today. With a {gap}-day gap, this has graduated from recovery into a proper little disappearance. Not a crisis yet, but certainly enough silence for the training plan to feel snubbed.",
+            f"Nothing on Strava today, and the last activity was {gap} days ago. That is no longer a pause; it's a storyline choice. A bold one, too, considering your previous enthusiasm for avoidable exertion.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap >= 7:
         variants = [
-            f"No activity today, and it's been {gap} days since the last one. That's no longer a blip; that's the beginning of a minor disappearance.",
-            f"Still quiet today. A {gap}-day gap is long enough for the training plan to start feeling ghosted.",
-            f"Nothing logged today, and the last activity was {gap} days ago. We are now comfortably beyond 'busy week' and into 'interesting silence' territory.",
-            f"No activity today. After {gap} days, this has started to look less like recovery and more like a deliberate vanishing act."
+            f"No activity today, and it's been {gap} days since the last one. That's no longer a blip; that's the beginning of a minor disappearance. We are now comfortably beyond 'busy week' territory and into something much more narratively interesting.",
+            f"Still quiet today. A {gap}-day gap is long enough for the training plan to start feeling ghosted. Not dramatic enough for concern, perhaps, but absolutely enough for a raised eyebrow and a pointed little cough.",
+            f"Nothing logged today, and the last activity was {gap} days ago. This is the kind of silence that starts out as recovery and slowly acquires the energy of avoidance. Charming, but suspicious.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap >= 3:
         variants = [
-            f"No activity today, and it's been {gap} days since the last one. Not alarming, just enough to make things mildly suspicious.",
-            f"Still quiet today. A {gap}-day gap is perfectly legal, though not especially convincing.",
-            f"Nothing logged today, and the last effort was {gap} days ago. We may be drifting from recovery into creative interpretation."
+            f"No activity today, and it's been {gap} days since the last one. Not alarming, just enough to make things mildly suspicious. The body may call it recovery; the narrative calls it a noticeable pause.",
+            f"Still quiet today. A {gap}-day gap is perfectly legal, though not especially convincing. We're not in disappearance territory yet, but we are absolutely lingering near the edge of it.",
+            f"Nothing logged today, and the last effort was {gap} days ago. We may be drifting from recovery into creative interpretation, which is always an interesting stage of the process.",
         ]
         return variants[(gap + spice) % len(variants)]
 
     if tone == 'coach' or spice == 0:
         variants = [
-            "No Strava activity today. Recovery counts, even when it is less entertaining.",
-            "Nothing logged today. Rest is valid, even if it leaves the roast with less material.",
-            "Quiet day on Strava. Sensible, restorative, and slightly inconvenient for the content pipeline.",
+            "No Strava activity today. Recovery counts, even when it is less entertaining. Sensible work isn't always visible, but it does still count.",
+            "Nothing logged today. Rest is valid, even if it leaves the roast with less material. Not every good training day needs to be loud.",
+            "Quiet day on Strava. Sensible, restorative, and slightly inconvenient for the content pipeline. Your legs are probably grateful, even if they remain poor conversationalists.",
         ]
         return variants[spice % len(variants)]
     if spice >= 2:
         variants = [
-            "No Strava activity today. Either you rested like a professional or simply left no witnesses.",
-            "Quiet day on Strava. Recovery is valid; disappearing completely is just dramatic.",
-            "Nothing logged today. Very mature, very restful, very suspicious.",
-            "No activity today. Your joints are thrilled, even if the roast economy is not.",
-            "Quiet feed, loud implications. Either this was recovery or a very clean getaway.",
+            "No Strava activity today. Either you rested like a professional or simply left no witnesses. Hard to say which, but the silence is doing a lot of work.",
+            "Quiet day on Strava. Recovery is valid; disappearing completely is just dramatic. Still, you have to respect the commitment to keeping the feed suspiciously tidy.",
+            "Nothing logged today. Very mature, very restful, very suspicious. The joints are relieved, the timeline is not.",
+            "No activity today. Your joints are thrilled, even if the roast economy is not. Somewhere inside your body, something is quietly sending a thank-you note.",
         ]
         return variants[spice % len(variants)]
     variants = [
-        "No Strava activity today. Rest day, stealth day, or admin day — all plausible.",
-        "Nothing logged today. Maybe recovery, maybe mystery, maybe both.",
-        "Quiet day on Strava. Not every plotline needs a training montage.",
-        "No activity today. A rare appearance from moderation, or at least something wearing its clothes.",
+        "No Strava activity today. Rest day, stealth day, or admin day — all plausible. Not every plotline needs a training montage.",
+        "Nothing logged today. Maybe recovery, maybe mystery, maybe both. Either way, the day seems to have happened mostly off-camera.",
+        "Quiet day on Strava. A rare appearance from moderation, or at least something wearing its clothes. Fair enough, honestly.",
     ]
     return variants[spice % len(variants)]
 
