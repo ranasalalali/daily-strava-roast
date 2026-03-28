@@ -33,16 +33,25 @@ def test_missing_model() -> None:
 
 
 def test_successful_generation() -> None:
-    text = generate_roast_paragraph({}, 'hello world', runner='cat', model='/dev/stdin')
+    text = generate_roast_paragraph({}, 'hello world', mode='local', runner='cat', model='/dev/stdin')
     assert text == 'hello world'
 
 
 def test_runner_failure() -> None:
     try:
-        generate_roast_paragraph({}, 'hello', runner='false', model='ignored')
+        generate_roast_paragraph({}, 'hello', mode='local', runner='false', model='ignored')
     except GenerationFailedError:
         return
     raise AssertionError('expected GenerationFailedError')
+
+
+def test_connected_mode_unavailable() -> None:
+    try:
+        generate_roast_paragraph({}, 'hello', mode='connected')
+    except GenerationUnavailableError as exc:
+        assert 'Connected-model generation is selected' in str(exc)
+    else:
+        raise AssertionError('expected GenerationUnavailableError')
 
 
 def main() -> int:
@@ -50,6 +59,7 @@ def main() -> int:
     test_missing_model()
     test_successful_generation()
     test_runner_failure()
+    test_connected_mode_unavailable()
     print('generator test passed')
     return 0
 

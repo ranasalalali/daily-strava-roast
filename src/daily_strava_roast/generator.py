@@ -7,6 +7,7 @@ from typing import Any
 
 DEFAULT_MODEL_RUNNER = os.getenv("DAILY_STRAVA_ROAST_MODEL_RUNNER")
 DEFAULT_MODEL_NAME = os.getenv("DAILY_STRAVA_ROAST_MODEL")
+DEFAULT_MODE = os.getenv("DAILY_STRAVA_ROAST_GENERATION_MODE", "local")
 
 
 class GenerationUnavailableError(RuntimeError):
@@ -22,6 +23,34 @@ def _clean_output(text: str) -> str:
 
 
 def generate_roast_paragraph(
+    context: dict[str, Any],
+    prompt: str,
+    *,
+    mode: str | None = None,
+    runner: str | None = None,
+    model: str | None = None,
+    timeout_seconds: int = 60,
+) -> str:
+    resolved_mode = (mode or DEFAULT_MODE or "local").strip().lower()
+
+    if resolved_mode == "connected":
+        raise GenerationUnavailableError(
+            "Connected-model generation is selected but not yet wired inside the packaged CLI runtime. "
+            "Use the V1 fallback path for now, or configure local generation explicitly."
+        )
+    if resolved_mode != "local":
+        raise GenerationUnavailableError(f"Unsupported generation mode: {resolved_mode}")
+
+    return _generate_with_local_runner(
+        context,
+        prompt,
+        runner=runner,
+        model=model,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _generate_with_local_runner(
     context: dict[str, Any],
     prompt: str,
     *,

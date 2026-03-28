@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
+    p.add_argument("--generation-mode", choices=["connected", "local"], default=os.getenv("DAILY_STRAVA_ROAST_GENERATION_MODE", "connected"), help="Prefer connected model generation or explicit local runner")
     p.add_argument("--model-runner", default=os.getenv("DAILY_STRAVA_ROAST_MODEL_RUNNER"), help="Local model runner executable")
     p.add_argument("--model", default=os.getenv("DAILY_STRAVA_ROAST_MODEL"), help="Model name passed to the runner")
     p.add_argument("--json", action="store_true")
@@ -270,17 +271,36 @@ def main() -> int:
             payload = generate_roast_paragraph(
                 context,
                 prompt,
+                mode=args.generation_mode,
                 runner=args.model_runner,
                 model=args.model,
             )
         except (GenerationUnavailableError, GenerationFailedError) as exc:
             raise SystemExit(f"generate failed: {exc}")
     else:
+        state = load_state(state_file)
+        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        prompt = build_roast_prompt(context)
+        generation_error = None
+        generated_roast = None
+        try:
+            generated_roast = generate_roast_paragraph(
+                context,
+                prompt,
+                mode=args.generation_mode,
+                runner=args.model_runner,
+                model=args.model,
+            )
+        except (GenerationUnavailableError, GenerationFailedError) as exc:
+            generation_error = str(exc)
+
         payload = {
             "activity_count": daily["activity_count"],
             "tone": args.tone,
             "spice": args.spice,
-            "roast": roast_block(activities, args.tone, args.spice),
+            "generation_mode": args.generation_mode,
+            "generation_error": generation_error,
+            "roast": generated_roast or roast_block(activities, args.tone, args.spice),
         }
 
     if args.command in {"prompt", "preview", "generate"}:
