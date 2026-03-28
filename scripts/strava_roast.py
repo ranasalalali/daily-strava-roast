@@ -264,9 +264,33 @@ def kicker_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
     return variants[idx % len(variants)]
 
 
+def no_activity_roast(tone: str, spice: int) -> str:
+    if tone == 'coach' or spice == 0:
+        variants = [
+            "No Strava activity today. Recovery counts, even when it is less entertaining.",
+            "Nothing logged today. Rest is valid, even if it leaves the roast with less material.",
+            "Quiet day on Strava. Sensible, restorative, and slightly inconvenient for the content pipeline.",
+        ]
+        return variants[spice % len(variants)]
+    if spice >= 2:
+        variants = [
+            "No Strava activity today. Either you rested like a professional or simply left no witnesses.",
+            "Quiet day on Strava. Recovery is valid; disappearing completely is just dramatic.",
+            "Nothing logged today. Very mature, very restful, very suspicious.",
+            "No activity today. Your joints are thrilled, even if the roast economy is not.",
+        ]
+        return variants[spice % len(variants)]
+    variants = [
+        "No Strava activity today. Rest day, stealth day, or admin day — all plausible.",
+        "Nothing logged today. Maybe recovery, maybe mystery, maybe both.",
+        "Quiet day on Strava. Not every plotline needs a training montage.",
+    ]
+    return variants[spice % len(variants)]
+
+
 def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
     if not day:
-        return "No recent Strava activity found. A bold commitment to mystery."
+        return no_activity_roast(tone, spice)
 
     idx = pattern_index(day, tone, spice)
     opener = opener_sentence(day, idx)
