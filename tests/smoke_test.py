@@ -18,8 +18,8 @@ def main() -> int:
     assert payload['days'][0]['rollup']['count'] == 2
 
     roast = sr.roast_day(payload['days'][0]['rollup'], 'playful', 2)
-    assert 'Lunch Run' in roast or 'Evening Tennis' in roast
-    assert 'disciplined little carnival of exertion' in roast
+    assert 'disciplined chaos' in roast or 'two-part program of exertion' in roast
+    assert 'kudos' in roast
 
     print('smoke test passed')
     return 0

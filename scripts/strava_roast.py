@@ -122,8 +122,6 @@ def aggregate_day(summaries: list[dict[str, Any]]) -> dict[str, Any]:
     total_elev = sum(s['elev_m'] for s in summaries)
     total_kudos = sum(s['kudos'] for s in summaries)
     indoor_count = sum(1 for s in summaries if s['trainer'])
-    tz = next((s['timezone'] for s in summaries if s.get('timezone')), None)
-    place = next((", ".join([x for x in [s.get('city'), s.get('state'), s.get('country')] if x]) for s in summaries if any([s.get('city'), s.get('state'), s.get('country')])), None)
     return {
         "date": date_key(summaries[0]) if summaries else None,
         "count": len(summaries),
@@ -134,38 +132,74 @@ def aggregate_day(summaries: list[dict[str, Any]]) -> dict[str, Any]:
         "total_elev": total_elev,
         "total_kudos": total_kudos,
         "indoor_count": indoor_count,
-        "timezone": tz,
-        "place": place,
+        "best_kudos": max((s['kudos'] for s in summaries), default=0),
+        "top_named": max(summaries, key=lambda s: s['kudos'])['name'] if summaries else None,
+        "summaries": summaries,
     }
 
 
-def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
-    names = join_names(day['names'])
-    sports = join_names(day['sports'])
-    intro = f"On {day['date']}, you somehow turned {names} into a full-day program of {sports.lower()}."
-    if day['place']:
-        intro = f"On {day['date']} in {day['place']}, you somehow turned {names} into a full-day program of {sports.lower()}."
+def sport_phrase(sport: str) -> str:
+    s = sport.lower()
+    if 'run' in s:
+        return 'a run'
+    if 'tennis' in s:
+        return 'tennis'
+    if 'weight' in s:
+        return 'a round of weight training'
+    if 'ride' in s or 'cycle' in s:
+        return 'a ride'
+    return sport.lower()
 
-    load = f" That came to {day['total_min']} moving minutes"
-    if day['total_km'] > 0:
-        load += f" and {day['total_km']} km"
-    if day['total_elev'] > 0:
-        load += f", plus {day['total_elev']} m of climbing"
-    load += "."
 
-    if tone == 'coach' or spice == 0:
-        ending = f" Solid work overall. {day['total_kudos']} kudos suggests the public approves, even if your legs may still be reviewing the decision."
-    elif spice == 1:
-        ending = f" It was a nicely structured little block of voluntary fatigue, with {day['total_kudos']} kudos worth of outside encouragement."
-    elif spice == 2:
-        ending = f" In other words, a disciplined little carnival of exertion — organized enough to look healthy, deranged enough to stay interesting."
-    else:
-        ending = f" In other words, you built an impressively coherent schedule for self-inflicted wear and tear, then had the audacity to collect {day['total_kudos']} kudos for it."
+def opening_phrase(day: dict[str, Any]) -> str:
+    if day['count'] == 1:
+        first = day['summaries'][0]
+        sport = sport_phrase(first['sport'])
+        name = first['name']
+        if 'run' in first['sport'].lower() and first['distance_km'] > 0:
+            return f"You somehow managed to turn {name.lower()} into a {first['distance_km']:.2f}K {sport[2:]},"
+        return f"You somehow managed to turn {name.lower()} into {sport},"
+    phrases = [sport_phrase(s['sport']) for s in day['summaries']]
+    return f"You somehow managed to stack {join_names(phrases[:-1]) if len(phrases)>1 else phrases[0]}{' and ' + phrases[-1] if len(phrases)>1 else ''},"
 
+
+def chaos_line(day: dict[str, Any], spice: int) -> str:
     if day['indoor_count'] and day['count'] > 1:
-        ending += " Bonus points for mixing outdoor ambition with indoor refusal to choose peace."
+        return "Between the outdoor ambition and indoor iron diplomacy, it was a full day of disciplined chaos."
+    if day['count'] >= 3:
+        return "It was a full day of disciplined chaos, which is a very elegant way of telling your legs they don't get voting rights."
+    if day['count'] == 2:
+        return "A tidy little two-part program of exertion, because apparently one bout of fatigue wasn't enough to make the point."
+    if spice >= 2:
+        return "A compact but committed burst of self-inflicted difficulty."
+    return "A respectable little dose of voluntary suffering."
 
-    return (intro + load + ending).strip()
+
+def social_line(day: dict[str, Any], spice: int) -> str:
+    kudos = day['best_kudos']
+    top = day['top_named']
+    if not kudos:
+        return "The public has wisely chosen not to encourage this further."
+    if spice >= 2:
+        return f"{kudos} kudos on {top.lower()} suggests people support the behaviour; whether they should is another matter."
+    return f"{kudos} kudos on {top.lower()} suggests the behaviour has, somehow, public backing."
+
+
+def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
+    if not day:
+        return "No recent Strava activity found. A bold commitment to mystery."
+    opener = opening_phrase(day)
+    if tone == 'coach' or spice == 0:
+        middle = "you put together a solid day of training without completely losing the plot."
+        end = social_line(day, 0)
+        return f"{opener} {middle} {end}"
+    if tone == 'dry':
+        middle = f"you logged {day['count']} activity{'ies' if day['count'] != 1 else ''} and {day['total_min']} moving minutes, which is a very efficient way to remain tired."
+        end = social_line(day, spice)
+        return f"{opener} {middle} {end}"
+    middle = chaos_line(day, spice)
+    end = social_line(day, spice)
+    return f"{opener} {middle} {end}"
 
 
 def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
