@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
+    p.add_argument("--variation-seed", default=None, help="Optional seed to vary roast selection")
     return p
 
 
@@ -182,8 +183,10 @@ def aggregate_day(summaries: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def pattern_index(day: dict[str, Any], tone: str, spice: int) -> int:
+def pattern_index(day: dict[str, Any], tone: str, spice: int, variation_seed: str | None = None) -> int:
     seed = f"{day.get('date')}|{','.join(day.get('names', []))}|{tone}|{spice}|{day.get('count')}"
+    if variation_seed:
+        seed += f"|{variation_seed}"
     return zlib.crc32(seed.encode())
 
 
@@ -211,8 +214,8 @@ def social_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
         return variants[idx % len(variants)]
     if spice >= 2:
         variants = [
-            f"{kudos} kudos suggests people are willing to encourage this sort of behaviour, which feels generous if not entirely responsible.",
-            f"The {kudos} kudos imply a surprising amount of public support for what was, at minimum, an avoidable amount of effort.",
+            f"{kudos} kudos suggests people are willing to encourage this sort of behaviour, which feels supportive in the way feeding a gremlin after midnight is supportive.",
+            f"The {kudos} kudos imply a surprising amount of public support for what was, at minimum, an aggressively optional amount of effort.",
             f"Somehow this still collected {kudos} kudos, so the public remains fully complicit."
         ]
         return variants[idx % len(variants)]
@@ -237,7 +240,7 @@ def effort_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
             bits.append(f"{total_elev} m of climbing")
         joined = ', '.join(bits[:-1]) + (f", and {bits[-1]}" if len(bits) > 1 else bits[0])
         variants = [
-            f"It wasn't an all-day epic, but {joined} still adds up to a very respectable little commitment to tiredness.",
+            f"It wasn't an all-day epic, but {joined} still adds up to a fairly committed way to make your legs resent you.",
             f"By the end of it, you'd stacked up {joined}, which is plenty if your goal was to make fatigue feel earned.",
             f"That's {joined}, which is a neat amount of work for something that was presumably meant to fit into a normal day."
         ]
@@ -337,8 +340,8 @@ def kicker_sentence(day: dict[str, Any], spice: int, idx: int, state: dict[str, 
     if spice >= 2:
         variants = [
             "Disciplined, productive, and just unhinged enough to stay interesting.",
-            "Healthy enough to sound respectable, deranged enough to remain entertaining.",
-            "Objectively solid work, with just enough chaos around the edges to give it personality."
+            "Respectable on paper, faintly unhinged in practice — exactly where the fun lives.",
+            "Solid work, though still just chaotic enough to keep your better judgment unemployed."
         ]
         return variants[idx % len(variants)]
     variants = [
@@ -435,11 +438,13 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
     return variants[spice % len(variants)]
 
 
-def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] | None = None) -> str:
+def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] | None = None, variation_seed: str | None = None) -> str:
     if not day:
         return no_activity_roast(tone, spice)
 
-    idx = pattern_index(day, tone, spice)
+    recent = state.get('recent', []) if state else []
+    variation_base = variation_seed or f"run-{len(recent)}"
+    idx = pattern_index(day, tone, spice, variation_base)
     opener = opener_sentence(day, idx)
     effort = effort_sentence(day, spice, idx)
     social = social_sentence(day, spice, idx)
@@ -494,7 +499,7 @@ def main() -> int:
         latest_day = daily['days'][0]['rollup'] if daily['days'] else None
         if latest_day:
             state = load_state(Path(args.state_file).expanduser())
-            roast = roast_day(latest_day, args.tone, args.spice, state)
+            roast = roast_day(latest_day, args.tone, args.spice, state, args.variation_seed)
             remember_roast(Path(args.state_file).expanduser(), state, {
                 'at': datetime.now(timezone.utc).isoformat(),
                 'date': latest_day.get('date'),
