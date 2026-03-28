@@ -9,12 +9,14 @@ import urllib.parse
 import urllib.request
 import zlib
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_tokens.json"
 DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
 DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
+DEFAULT_STATE_FILE = Path.home() / '.openclaw' / 'workspace' / 'daily-strava-roast' / 'state' / 'recent_roasts.json'
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lookback-limit", type=int, default=30, help="How many activities to scan when looking for the last recorded activity")
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
+    p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
     return p
@@ -40,6 +43,37 @@ def load_tokens(path: Path) -> dict[str, Any]:
 def save_tokens(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"recent": []}
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return {"recent": []}
+
+
+
+def save_state(path: Path, state: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2) + "\n")
+
+
+
+def remember_roast(path: Path, state: dict[str, Any], entry: dict[str, Any]) -> None:
+    recent = state.get("recent", [])
+    recent.append(entry)
+    state["recent"] = recent[-10:]
+    save_state(path, state)
+
+
+
+def recent_sports_context(state: dict[str, Any]) -> list[str]:
+    sports = []
+    for item in state.get("recent", []):
+        sports.extend(item.get("sports", []))
+    return sports[-20:]
 
 
 def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_secret: str | None) -> dict[str, Any]:
@@ -252,12 +286,21 @@ def opener_sentence(day: dict[str, Any], idx: int) -> str:
     return variants[idx % len(variants)]
 
 
-def kicker_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
+def kicker_sentence(day: dict[str, Any], spice: int, idx: int, state: dict[str, Any] | None = None) -> str:
+    recent_sports = recent_sports_context(state or {})
+    repeated = any(s in recent_sports for s in day['sports'])
     if day['indoor_count'] and day['count'] > 1:
         variants = [
             "It had a pleasing mix of outdoor optimism and indoor refusal to choose peace.",
             "Between the fresh air and the indoor consequences, the whole thing somehow felt almost balanced.",
             "It was a nice blend of outside ambition and inside stubbornness, which is very on brand."
+        ]
+        return variants[idx % len(variants)]
+    if repeated and spice >= 2:
+        variants = [
+            "Also, this is starting to look less like variety and more like a recurring character trait.",
+            "At this point the pattern is becoming part of the lore.",
+            "There is now enough repetition here to call it a theme, not an accident."
         ]
         return variants[idx % len(variants)]
     if spice >= 2:
@@ -365,7 +408,7 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
     return variants[spice % len(variants)]
 
 
-def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
+def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] | None = None) -> str:
     if not day:
         return no_activity_roast(tone, spice)
 
@@ -373,7 +416,7 @@ def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
     opener = opener_sentence(day, idx)
     effort = effort_sentence(day, spice, idx)
     social = social_sentence(day, spice, idx)
-    kicker = kicker_sentence(day, spice, idx)
+    kicker = kicker_sentence(day, spice, idx, state)
 
     if tone == 'coach' or spice == 0:
         return f"{opener} {effort} {social}"
@@ -423,7 +466,17 @@ def main() -> int:
     else:
         latest_day = daily['days'][0]['rollup'] if daily['days'] else None
         if latest_day:
-            roast = roast_day(latest_day, args.tone, args.spice)
+            state = load_state(Path(args.state_file).expanduser())
+            roast = roast_day(latest_day, args.tone, args.spice, state)
+            remember_roast(Path(args.state_file).expanduser(), state, {
+                'at': datetime.now(timezone.utc).isoformat(),
+                'date': latest_day.get('date'),
+                'sports': latest_day.get('sports', []),
+                'count': latest_day.get('count'),
+                'tone': args.tone,
+                'spice': args.spice,
+                'roast': roast,
+            })
         else:
             recent = fetch_recent_activity(tokens, args.lookback_limit)
             roast = no_activity_roast(args.tone, args.spice, recent[0] if recent else None)
