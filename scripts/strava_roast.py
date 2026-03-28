@@ -154,13 +154,21 @@ def sport_phrase(sport: str) -> str:
 def opening_phrase(day: dict[str, Any]) -> str:
     if day['count'] == 1:
         first = day['summaries'][0]
-        sport = sport_phrase(first['sport'])
+        sport = first['sport'].lower()
         name = first['name']
-        if 'run' in first['sport'].lower() and first['distance_km'] > 0:
-            return f"You somehow managed to turn {name.lower()} into a {first['distance_km']:.2f}K {sport[2:]},"
-        return f"You somehow managed to turn {name.lower()} into {sport},"
+        if 'run' in sport and first['distance_km'] > 0:
+            return f"You turned {name.lower()} into a {first['distance_km']:.2f}K run,"
+        if 'ride' in sport or 'cycle' in sport:
+            return f"You opened the day with {name.lower()}, which is a very committed way to spend your free will,"
+        if 'tennis' in sport:
+            return f"You dedicated part of the day to {name.lower()}, which is cardio dressed up as a hobby,"
+        if 'weight' in sport or first['trainer']:
+            return f"You made time for {name.lower()}, which means even indoors you still found a way to negotiate with suffering,"
+        return f"You made a whole event out of {name.lower()},"
     phrases = [sport_phrase(s['sport']) for s in day['summaries']]
-    return f"You somehow managed to stack {join_names(phrases[:-1]) if len(phrases)>1 else phrases[0]}{' and ' + phrases[-1] if len(phrases)>1 else ''},"
+    if day['count'] == 2:
+        return f"You somehow turned the day into {phrases[0]} and {phrases[1]},"
+    return f"You somehow managed to stack {join_names(phrases[:-1])} and {phrases[-1]},"
 
 
 def chaos_line(day: dict[str, Any], spice: int) -> str:
@@ -171,7 +179,7 @@ def chaos_line(day: dict[str, Any], spice: int) -> str:
     if day['count'] == 2:
         return "A tidy little two-part program of exertion, because apparently one bout of fatigue wasn't enough to make the point."
     if spice >= 2:
-        return "A compact but committed burst of self-inflicted difficulty."
+        return "A compact but committed burst of self-inflicted difficulty, because moderation clearly wasn't getting a vote."
     return "A respectable little dose of voluntary suffering."
 
 
