@@ -11,6 +11,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from daily_strava_roast.context_builder import build_roast_context
+
 DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_tokens.json"
 DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
 DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
@@ -18,7 +20,7 @@ DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
-    p.add_argument("command", choices=["summary", "roast"], nargs="?", default="roast")
+    p.add_argument("command", choices=["summary", "roast", "context"], nargs="?", default="roast")
     p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
     p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
     p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
