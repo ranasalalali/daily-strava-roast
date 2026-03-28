@@ -25,7 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--days", type=int, default=2, help="Look back N days for recent activity")
     p.add_argument("--limit", type=int, default=3, help="Max activities to fetch")
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
-    p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=1, help="Roast intensity from 0 (gentle) to 3 (scorched)")
+    p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
     return p

@@ -20,7 +20,7 @@ This skill:
 Run the bundled script:
 
 ```bash
-python {baseDir}/scripts/strava_roast.py roast
+python {baseDir}/scripts/strava_roast.py roast  # defaults to tone=playful, spice=3
 python {baseDir}/scripts/strava_roast.py roast --tone dry --spice 1
 python {baseDir}/scripts/strava_roast.py roast --tone playful --spice 2
 python {baseDir}/scripts/strava_roast.py roast --tone savage --spice 3

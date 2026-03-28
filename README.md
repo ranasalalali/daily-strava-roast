@@ -55,7 +55,7 @@ uv run --project . daily-strava-roast summary --json --pretty
 ## Script usage
 
 ```bash
-python scripts/strava_roast.py roast
+python scripts/strava_roast.py roast  # defaults to tone=playful, spice=3
 python scripts/strava_roast.py roast --tone dry --spice 1
 python scripts/strava_roast.py roast --tone coach --spice 0
 ```
