@@ -73,7 +73,9 @@ def remember_roast(path: Path, state: dict[str, Any], entry: dict[str, Any]) -> 
 def recent_sports_context(state: dict[str, Any]) -> list[str]:
     sports = []
     for item in state.get("recent", []):
-        sports.extend(item.get("sports", []))
+        value = item.get("sports", []) if isinstance(item, dict) else []
+        if isinstance(value, list):
+            sports.extend([s for s in value if isinstance(s, str)])
     return sports[-20:]
 
 
@@ -528,7 +530,7 @@ def main() -> int:
         if latest_day:
             state = load_state(Path(args.state_file).expanduser())
             roast = roast_day(latest_day, args.tone, args.spice, state, args.variation_seed)
-            family_idx = choose_family(6 if args.tone not in ('dry','coach') and args.spice != 0 else 3, state.get('recent', []), pattern_index(latest_day, args.tone, args.spice, args.variation_seed or f'run-{len(state.get("recent", []))}')) )
+            family_idx = choose_family(6 if args.tone not in ('dry','coach') and args.spice != 0 else 3, state.get('recent', []), pattern_index(latest_day, args.tone, args.spice, args.variation_seed or f'run-{len(state.get("recent", []))}'))
             remember_roast(Path(args.state_file).expanduser(), state, {
                 'at': datetime.now(timezone.utc).isoformat(),
                 'date': latest_day.get('date'),
