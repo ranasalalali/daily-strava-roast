@@ -1,5 +1,7 @@
 # daily-strava-roast
 
+[![CI](https://github.com/ranasalalali/daily-strava-roast/actions/workflows/ci.yml/badge.svg)](https://github.com/ranasalalali/daily-strava-roast/actions/workflows/ci.yml)
+
 A portable AgentSkill and Python CLI for turning recent Strava activity into a funny daily roast.
 
 ## Overview
@@ -11,6 +13,15 @@ It is built for:
 - scheduled daily activity roasts
 - post-workout recaps with personality
 - configurable tone and spice level
+- slightly unnecessary but highly respectable levels of sass
+
+## Quick start
+
+```bash
+uv run --project . daily-strava-roast roast
+uv run --project . daily-strava-roast roast --tone playful --spice 3
+uv run --project . daily-strava-roast summary --json --pretty
+```
 
 ## Why it exists
 
@@ -29,10 +40,12 @@ That keeps the implementation, local use, and eventual publication aligned in on
 ## Features
 
 - fetch recent Strava activity from a token file
-- summarize key metrics
-- roast by activity type
+- summarize the day instead of dumping raw activity lines
+- generate compact narrative roasts
 - adjustable tone: `dry`, `playful`, `savage`, `coach`
-- adjustable spice: `0..3`
+- adjustable spice: `0..3` (default leans spicy)
+- smarter no-activity roasts based on inactivity gap
+- lightweight roast memory to reduce repetition over time
 - JSON summary output for scripting
 
 ## Repo structure
@@ -47,26 +60,24 @@ That keeps the implementation, local use, and eventual publication aligned in on
 
 ```bash
 uv run --project . daily-strava-roast roast
-uv run --project . daily-strava-roast roast --tone playful --spice 2
-uv run --project . daily-strava-roast roast --tone savage --spice 3
+uv run --project . daily-strava-roast roast --tone playful --spice 3
+uv run --project . daily-strava-roast roast --tone coach --spice 0
 uv run --project . daily-strava-roast summary --json --pretty
 ```
 
 ## Script usage
 
 ```bash
-python scripts/strava_roast.py roast  # defaults to tone=playful, spice=3
+python scripts/strava_roast.py roast
+python scripts/strava_roast.py roast --tone playful --spice 3
 python scripts/strava_roast.py roast --tone dry --spice 1
-python scripts/strava_roast.py roast --tone coach --spice 0
+python scripts/strava_roast.py summary --json --pretty
 ```
 
 ## Example output
 
 ```text
-Evening Weight Training: 59 min of weight training. Same room, same iron, same refusal to choose peace.
-Lunch Run: 5.04 km in 28 min. Efficient, uncomfortable, and exactly the kind of idea your legs will remember tomorrow.
-Evening Tennis: 64 min of tennis. Just enough running to be annoying, not enough to count as honesty.
-Overall: 7.23 km across 3 activities and 151 moving minutes. Productive, disciplined, and a little bit deranged.
+You opened the day with a ride, which is a very committed way to spend your free will. It wasn't an all-day epic, but 150 moving minutes, 56.95 km, and 733 m of climbing still adds up to a very respectable little commitment to tiredness. 10 kudos suggests people are willing to encourage this sort of behaviour, which feels generous if not entirely responsible.
 ```
 
 ## Testing
@@ -79,3 +90,11 @@ CI checks:
 - CLI help
 - smoke test execution
 - package build
+
+## Design goals
+
+- portable
+- local-first
+- funny without becoming unreadable
+- small and pragmatic
+- suitable for both real use and eventual publication
