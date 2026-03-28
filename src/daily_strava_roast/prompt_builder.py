@@ -11,7 +11,7 @@ PROMPT_INTRO = (
 )
 
 
-AVOID_PHRASES = [
+BANNED_PHRASES = [
     "personality trait",
     "heroically in public",
     "apparently",
@@ -38,11 +38,12 @@ def _activity_guidance(activity_count: int) -> list[str]:
     if activity_count == 1:
         return [
             "- Focus on the single session instead of pretending there was an epic training block.",
-            "- Use one or two concrete details, not a full stat recital.",
+            "- Usually mention no more than two concrete details.",
         ]
     return [
         "- Treat the day as one combined story, not separate mini-recaps.",
         "- Mention the mix of activities only if it helps the joke.",
+        "- Usually mention no more than two concrete details across the whole paragraph.",
     ]
 
 
@@ -52,6 +53,7 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
     effort = context.get("effort", {})
     hints = context.get("pattern_hints", {})
     style = context.get("style", {})
+    spice = int(style.get("spice", 3) or 0)
 
     lines = [
         PROMPT_INTRO,
@@ -71,20 +73,24 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         f"- indoor_count: {hints.get('indoor_count', 0)}",
         f"- repeat_sport_recently: {bool(hints.get('repeat_sport_recently', False))}",
         f"- requested_tone: {style.get('tone', 'playful')}",
-        f"- requested_spice: {style.get('spice', 3)}",
+        f"- requested_spice: {spice}",
         "",
         "Constraints:",
         "- Output exactly one paragraph.",
         "- Keep it to one or two sentences max.",
-        "- Use at most two or three concrete stats unless one extreme stat is unusually funny.",
+        "- Usually mention no more than two concrete stats.",
+        "- Use a third only if it makes the joke noticeably better.",
+        "- Do not mention both average and max heart rate unless heart rate is the whole joke.",
         "- Do not use bullet points, labels, or quotation marks in the final output.",
         "- Do not list every stat mechanically.",
         "- Weave in only the most relevant details.",
         "- Prefer dry understatement over exaggerated cleverness.",
         "- Prefer one clean joke over several stacked jokes.",
+        "- Avoid poetic, cosmic, or grandly dramatic phrasing.",
+        "- If a line sounds polished or ornate, simplify it once.",
         "- Avoid sounding like a dashboard, coach app, or generic AI assistant.",
         "- Keep it sharp, readable, and specific.",
-        f"- Avoid these phrases unless truly unavoidable: {', '.join(AVOID_PHRASES)}.",
+        f"- Do not use these phrases or close variants: {', '.join(BANNED_PHRASES)}.",
         "- Vary sentence openings; do not sound like a reusable content template.",
     ]
 
@@ -94,8 +100,11 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         lines.append("- Hint at the repeated-sport pattern without repeating old phrasing.")
     if int(hints.get("indoor_count", 0) or 0) > 0:
         lines.append("- If useful, lightly acknowledge the indoor/trainer angle without overexplaining it.")
-    if style.get("tone") == "coach" or style.get("spice") == 0:
+    if style.get("tone") == "coach" or spice == 0:
         lines.append("- Keep the edge light; this should feel more encouraging than cruel.")
+    elif spice >= 3:
+        lines.append("- At spice 3, you may be sharper, meaner, and more judgmental, but stay clean and funny rather than abusive.")
+        lines.append("- Prefer dry contempt or amused mockery over loud nastiness.")
     else:
         lines.append("- Let the joke land, but keep it human and readable.")
 

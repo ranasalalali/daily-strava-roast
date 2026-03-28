@@ -43,8 +43,10 @@ def test_multi_activity_prompt() -> None:
     assert '- Hint at the repeated-sport pattern without repeating old phrasing.' in prompt
     assert 'Avoid sounding like a dashboard' in prompt
     assert 'Keep it to one or two sentences max.' in prompt
-    assert 'Use at most two or three concrete stats' in prompt
-    assert 'Avoid these phrases unless truly unavoidable' in prompt
+    assert 'Usually mention no more than two concrete stats.' in prompt
+    assert 'Use a third only if it makes the joke noticeably better.' in prompt
+    assert 'Do not use these phrases or close variants' in prompt
+    assert 'At spice 3, you may be sharper, meaner, and more judgmental' in prompt
 
 
 def test_single_activity_prompt() -> None:
@@ -75,7 +77,7 @@ def test_single_activity_prompt() -> None:
     }
     prompt = build_roast_prompt(context)
     assert '- Focus on the single session instead of pretending there was an epic training block.' in prompt
-    assert '- Use one or two concrete details, not a full stat recital.' in prompt
+    assert '- Usually mention no more than two concrete details.' in prompt
     assert '- Let the joke land, but keep it human and readable.' in prompt
 
 
