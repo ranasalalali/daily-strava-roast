@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
     p.add_argument("--days", type=int, default=2, help="Look back N days for recent activity")
     p.add_argument("--limit", type=int, default=6, help="Max activities to fetch")
+    p.add_argument("--lookback-limit", type=int, default=30, help="How many activities to scan when looking for the last recorded activity")
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=1, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--json", action="store_true")
@@ -62,6 +63,16 @@ def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_se
 def fetch_activities(tokens: dict[str, Any], days: int, limit: int) -> list[dict[str, Any]]:
     after = int(time.time()) - days * 86400
     query = urllib.parse.urlencode({"after": after, "per_page": limit, "page": 1})
+    req = urllib.request.Request(
+        f"https://www.strava.com/api/v3/athlete/activities?{query}",
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
+def fetch_recent_activity(tokens: dict[str, Any], limit: int) -> list[dict[str, Any]]:
+    query = urllib.parse.urlencode({"per_page": limit, "page": 1})
     req = urllib.request.Request(
         f"https://www.strava.com/api/v3/athlete/activities?{query}",
         headers={"Authorization": f"Bearer {tokens['access_token']}"},
@@ -264,7 +275,38 @@ def kicker_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
     return variants[idx % len(variants)]
 
 
-def no_activity_roast(tone: str, spice: int) -> str:
+def days_since(date_str: str | None) -> int | None:
+    if not date_str:
+        return None
+    try:
+        ts = time.strptime(date_str[:19], "%Y-%m-%dT%H:%M:%S")
+        then = int(time.mktime(ts))
+        return max(0, int((time.time() - then) // 86400))
+    except Exception:
+        return None
+
+
+
+def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | None = None) -> str:
+    gap = days_since(last_activity.get('start_date_local')) if last_activity else None
+    name = last_activity.get('name') if last_activity else None
+
+    if gap is not None and gap > 120:
+        variants = [
+            f"No Strava activity today, and the last recorded effort was {gap} days ago. At this point it's less a training gap and more an archaeological layer.",
+            f"Still nothing today. Your last logged activity was *{name}* {gap} days ago, which means even the kudos have probably had time to decompose.",
+            f"No activity today, and the last thing Strava remembers is from {gap} days ago. This is no longer a rest phase; it's historical fiction.",
+        ]
+        return variants[spice % len(variants)]
+
+    if gap is not None and gap > 30:
+        variants = [
+            f"No Strava activity today. The last logged effort was {gap} days ago, so this has drifted well past 'rest day' and into 'season finale'.",
+            f"Still quiet today, and your last activity was {gap} days ago. Respectfully, the storyline has gone cold.",
+            f"Nothing today, and the last recorded activity was {gap} days back. That is starting to feel less like recovery and more like witness protection.",
+        ]
+        return variants[spice % len(variants)]
+
     if tone == 'coach' or spice == 0:
         variants = [
             "No Strava activity today. Recovery counts, even when it is less entertaining.",
@@ -345,7 +387,11 @@ def main() -> int:
         payload: Any = daily
     else:
         latest_day = daily['days'][0]['rollup'] if daily['days'] else None
-        roast = roast_day(latest_day, args.tone, args.spice) if latest_day else "No recent Strava activity found. Rest counts too."
+        if latest_day:
+            roast = roast_day(latest_day, args.tone, args.spice)
+        else:
+            recent = fetch_recent_activity(tokens, args.lookback_limit)
+            roast = no_activity_roast(args.tone, args.spice, recent[0] if recent else None)
         payload = {
             "activity_count": daily['activity_count'],
             "day_count": len(daily['days']),
