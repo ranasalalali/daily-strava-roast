@@ -7,6 +7,7 @@ import os
 import time
 import urllib.parse
 import urllib.request
+import zlib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -193,21 +194,53 @@ def social_line(day: dict[str, Any], spice: int) -> str:
     return f"{kudos} kudos on {top.lower()} suggests the behaviour has, somehow, public backing."
 
 
+def title_roast(day: dict[str, Any], spice: int) -> str | None:
+    if not day['names']:
+        return None
+    name = day['names'][0]
+    lowered = name.lower()
+    if any(x in lowered for x in ['morning ride', 'lunch run', 'evening tennis', 'evening weight training']):
+        if spice >= 2:
+            return f"Calling it *{name}* has the gloriously plain energy of naming a folder 'new folder'."
+        return f"The title *{name}* is admirably direct, if not wildly imaginative."
+    if len(name.split()) <= 2 and spice >= 3:
+        return f"*{name}* is such a blunt title it feels less like creativity and more like a witness statement."
+    return None
+
+
+def pattern_index(day: dict[str, Any], tone: str, spice: int) -> int:
+    seed = f"{day.get('date')}|{','.join(day.get('names', []))}|{tone}|{spice}|{day.get('count')}"
+    return zlib.crc32(seed.encode()) % 4
+
+
 def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
     if not day:
         return "No recent Strava activity found. A bold commitment to mystery."
+
+    title_bit = title_roast(day, spice)
     opener = opening_phrase(day)
+    chaos = chaos_line(day, spice)
+    social = social_line(day, spice)
+    idx = pattern_index(day, tone, spice)
+
     if tone == 'coach' or spice == 0:
-        middle = "you put together a solid day of training without completely losing the plot."
-        end = social_line(day, 0)
-        return f"{opener} {middle} {end}"
+        return f"{opener} you put together a solid day of training without completely losing the plot. {social}"
+
     if tone == 'dry':
-        middle = f"you logged {day['count']} activity{'ies' if day['count'] != 1 else ''} and {day['total_min']} moving minutes, which is a very efficient way to remain tired."
-        end = social_line(day, spice)
-        return f"{opener} {middle} {end}"
-    middle = chaos_line(day, spice)
-    end = social_line(day, spice)
-    return f"{opener} {middle} {end}"
+        if idx % 2 == 0:
+            return f"{opener} you logged {day['count']} activity{'ies' if day['count'] != 1 else ''} and {day['total_min']} moving minutes, which is a very efficient way to remain tired. {social}"
+        return f"{social} {opener} you still found time for {day['count']} activity{'ies' if day['count'] != 1 else ''} and {day['total_min']} moving minutes. Admirably unnecessary."
+
+    if idx == 0:
+        parts = [opener, chaos, social]
+    elif idx == 1:
+        parts = [title_bit, opener, social] if title_bit else [social, opener, chaos]
+    elif idx == 2:
+        parts = [social, opener, chaos]
+    else:
+        parts = [opener, title_bit, chaos, social] if title_bit else [chaos, opener, social]
+
+    return ' '.join([p for p in parts if p])
 
 
 def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
