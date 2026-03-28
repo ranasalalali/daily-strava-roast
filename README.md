@@ -76,7 +76,8 @@ V2 staging note:
 - `preview` emits a local preview paragraph from the V2 context/prompt path for prompt-shape evaluation
 - `generate` is an explicit local generation test path
 - `roast` remains deterministic in the packaged CLI
-- connected/default-model generation belongs to the OpenClaw runtime layer, not the standalone package CLI
+- connected/default-model generation belongs to the OpenClaw runtime skill layer, not the standalone package CLI
+- the intended runtime flow is: `context` -> `prompt` -> connected model paragraph -> fallback to deterministic `roast` when needed
 
 ## Script usage
 

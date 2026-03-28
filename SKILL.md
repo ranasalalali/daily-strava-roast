@@ -43,11 +43,53 @@ python {baseDir}/scripts/strava_roast.py summary --json --pretty
 ## Runtime guidance
 
 When invoked inside OpenClaw for an actual roast reply:
-- prefer building context first
+- run deterministic preparation first
 - use the connected/default runtime model only to write the final roast paragraph
 - keep that paragraph to one short paragraph
 - do not invent stats
 - if generation fails, return the deterministic roast instead of erroring
+
+### Runtime recipe
+
+Use this sequence:
+
+1. Build context JSON:
+
+```bash
+uv run --project {baseDir} daily-strava-roast context --pretty
+```
+
+2. Build the constrained prompt:
+
+```bash
+uv run --project {baseDir} daily-strava-roast prompt
+```
+
+3. Ask the connected/default OpenClaw runtime model to write the final paragraph from that prompt.
+4. Before replying, sanity-check the generated paragraph:
+   - exactly one paragraph
+   - no bullet points
+   - no invented stats
+   - not generic AI filler
+   - tone matches requested spice/tone closely enough
+5. If the paragraph fails those checks or generation is unavailable, fall back to:
+
+```bash
+uv run --project {baseDir} daily-strava-roast roast
+```
+
+### Fallback triggers
+
+Fall back immediately if any of these happen:
+- no connected/default runtime model is available
+- generated output is empty
+- generated output invents numbers, activities, or claims not present in the prompt/context
+- generated output is multiple paragraphs or list-like
+- generated output is obviously generic, repetitive, or less readable than the deterministic roast
+
+When falling back:
+- do not apologize unless the user needs to know
+- just return the deterministic roast text
 
 When working purely from the repo/CLI:
 - treat connected-model generation as a runtime concern, not a guaranteed packaged-CLI feature
