@@ -134,6 +134,7 @@ def summarize_activity(a: dict[str, Any]) -> dict[str, Any]:
         "kudos": a.get("kudos_count") or 0,
         "achievements": a.get("achievement_count") or 0,
         "avg_hr": round(a.get("average_heartrate") or 0) or None,
+        "max_hr": round(a.get("max_heartrate") or 0) or None,
         "avg_watts": round(a.get("average_watts") or 0) or None,
         "suffer": a.get("suffer_score"),
         "date_local": a.get("start_date_local"),
@@ -286,9 +287,39 @@ def opener_sentence(day: dict[str, Any], idx: int) -> str:
     return variants[idx % len(variants)]
 
 
+def hr_sentence(day: dict[str, Any], idx: int) -> str | None:
+    first = day['summaries'][0] if day['summaries'] else None
+    if not first:
+        return None
+    avg_hr = first.get('avg_hr')
+    max_hr = first.get('max_heartrate') or first.get('max_hr')
+    sport = sport_label(first['sport'])
+    if not max_hr:
+        return None
+    if max_hr >= 185:
+        variants = [
+            f"The max heart rate peaking at {max_hr} suggests you did, at some point, stop pretending this was casual.",
+            f"A max heart rate of {max_hr} is a nice little reminder that you were, briefly, very much involved in your own suffering.",
+            f"Topping out at {max_hr} bpm does imply you visited the upper floors of your effort range, so points for commitment."
+        ]
+        return variants[idx % len(variants)]
+    if max_hr <= 150 and sport in {'a run', 'a ride'}:
+        variants = [
+            f"The heart rate stayed civilised enough that the session reads as controlled rather than chaotic, which is almost suspiciously mature.",
+            f"For something like this, a max heart rate of {max_hr} suggests you either paced beautifully or never fully signed the emotional consent form.",
+            f"The max heart rate never got especially theatrical, which may mean discipline — or unfinished business."
+        ]
+        return variants[idx % len(variants)]
+    return None
+
+
+
 def kicker_sentence(day: dict[str, Any], spice: int, idx: int, state: dict[str, Any] | None = None) -> str:
     recent_sports = recent_sports_context(state or {})
     repeated = any(s in recent_sports for s in day['sports'])
+    hr = hr_sentence(day, idx)
+    if hr and idx % 3 == 0:
+        return hr
     if day['indoor_count'] and day['count'] > 1:
         variants = [
             "It had a pleasing mix of outdoor optimism and indoor refusal to choose peace.",
