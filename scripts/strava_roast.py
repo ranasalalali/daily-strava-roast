@@ -457,20 +457,34 @@ def roast_day(day: dict[str, Any], tone: str, spice: int, state: dict[str, Any] 
         return f"{opener} {effort} {social}"
 
     if tone == 'dry':
-        patterns = [
+        families = [
             f"{opener} {effort} {social}",
-            f"{effort} {opener} {social}",
-            f"{opener} {social} {kicker}",
+            f"{effort} {social} {kicker}",
+            f"{social} {opener} {effort}",
         ]
-        return patterns[idx % len(patterns)]
+        return families[idx % len(families)]
 
-    patterns = [
+    # Distinct roast families instead of fragment shuffling
+    families = [
+        # observational narrator
         f"{opener} {effort} {social}",
+
+        # social-proof first
         f"{social} {opener} {kicker}",
-        f"{opener} {kicker} {social}",
+
+        # fake respectable analysis
+        f"On paper, this was all very disciplined and sensible. In practice, {effort[0].lower() + effort[1:]} {kicker}",
+
+        # mildly judgmental friend
+        f"{opener} Honestly, {effort[0].lower() + effort[1:]} {social}",
+
+        # deadpan amused recap
         f"{effort} {social} {kicker}",
+
+        # recurring-character style
+        f"{opener} {kicker} {social}",
     ]
-    return patterns[idx % len(patterns)]
+    return families[idx % len(families)]
 
 
 def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
