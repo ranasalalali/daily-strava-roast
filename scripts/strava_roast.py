@@ -94,9 +94,6 @@ def summarize_activity(a: dict[str, Any]) -> dict[str, Any]:
         "date_local": a.get("start_date_local"),
         "timezone": a.get("timezone"),
         "trainer": bool(a.get("trainer")),
-        "city": a.get("location_city"),
-        "state": a.get("location_state"),
-        "country": a.get("location_country"),
     }
 
 
@@ -139,154 +136,130 @@ def aggregate_day(summaries: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def sport_phrase(sport: str) -> str:
-    s = sport.lower()
-    if 'run' in s:
-        return 'a run'
-    if 'tennis' in s:
-        return 'tennis'
-    if 'weight' in s:
-        return 'a round of weight training'
-    if 'ride' in s or 'cycle' in s:
-        return 'a ride'
-    return sport.lower()
-
-
-def title_roast(day: dict[str, Any], spice: int, idx: int) -> str | None:
-    if not day['names']:
-        return None
-    name = day['names'][0]
-    lowered = name.lower()
-    generic_titles = ['morning ride', 'lunch run', 'evening tennis', 'evening weight training', 'morning run', 'evening run']
-    if lowered in generic_titles:
-        variants = [
-            f"Calling it *{name}* has the gloriously plain energy of naming a folder 'new folder'.",
-            f"The title *{name}* is admirably direct, if not exactly drunk on imagination.",
-            f"*{name}* is such an honest title it feels less written than filed.",
-            f"There is something almost moving about how little decorative effort went into the title *{name}*.",
-        ]
-        return variants[idx % len(variants)] if spice >= 1 else variants[1]
-    if len(name.split()) <= 2 and spice >= 3:
-        return f"*{name}* is such a blunt title it feels less like creativity and more like a witness statement."
-    return None
-
-
 def pattern_index(day: dict[str, Any], tone: str, spice: int) -> int:
     seed = f"{day.get('date')}|{','.join(day.get('names', []))}|{tone}|{spice}|{day.get('count')}"
     return zlib.crc32(seed.encode())
 
 
-def single_activity_opener(day: dict[str, Any], spice: int, idx: int) -> str:
-    first = day['summaries'][0]
-    sport = first['sport'].lower()
-    name = first['name']
-    if 'ride' in sport or 'cycle' in sport:
-        variants = [
-            f"You opened the day with *{name}*, which is a very committed way to spend your free will.",
-            f"Apparently the day's opening argument was *{name}*, because moderation once again failed to make the guest list.",
-            f"You decided *{name}* was how this day should begin, which says a lot about your relationship with optional suffering.",
-            f"*{name}* was your idea of a normal start to the day, which is already a fairly revealing character note.",
-            f"There are easier ways to begin a day than *{name}*, but apparently ease was never central to the plan.",
-        ]
-        return variants[idx % len(variants)]
-    if 'run' in sport:
-        variants = [
-            f"You turned *{name}* into a very public little argument with your own legs.",
-            f"You called it *{name}*, then went out for the sort of effort that makes that title sound suspiciously understated.",
-            f"Somewhere along the line, *{name}* became your chosen form of cardio diplomacy.",
-            f"*{name}* sounds harmless on paper, which is a charming lie to tell yourself before a run.",
-        ]
-        return variants[idx % len(variants)]
-    if 'tennis' in sport:
-        variants = [
-            f"You dedicated part of the day to *{name}*, which is just cardio dressed up as a civilized hobby.",
-            f"*{name}* was apparently the plan, because simple rest would clearly have been too tasteful.",
-            f"You went with *{name}*, proving once again that tennis is just respectable-looking chaos.",
-            f"*{name}* sounds elegant, which is one of tennis' better disguises for all the sprinting.",
-        ]
-        return variants[idx % len(variants)]
-    if 'weight' in sport or first['trainer']:
-        variants = [
-            f"You made time for *{name}*, which means even indoors you still found a way to negotiate with suffering.",
-            f"*{name}* was the chosen activity, because peace and quiet were evidently never serious candidates.",
-            f"You spent part of the day on *{name}*, which is a polite way of saying you went inside to manufacture consequences.",
-            f"*{name}* is what happened when you looked at a perfectly normal day and decided it needed iron in the story.",
-        ]
-        return variants[idx % len(variants)]
-    return f"You made a whole event out of *{name}*, which feels on brand."
+def sport_label(sport: str) -> str:
+    s = sport.lower()
+    if 'run' in s:
+        return 'run'
+    if 'ride' in s or 'cycle' in s:
+        return 'ride'
+    if 'tennis' in s:
+        return 'tennis'
+    if 'weight' in s:
+        return 'weight training'
+    return s
 
 
-def multi_activity_opener(day: dict[str, Any], idx: int) -> str:
-    phrases = [sport_phrase(s['sport']) for s in day['summaries']]
-    variants = [
-        f"You somehow turned the day into {join_names(phrases)},",
-        f"At some point this became a day featuring {join_names(phrases)},",
-        f"You managed to stack {join_names(phrases)},",
-        f"What started as a normal day somehow collected {join_names(phrases)},",
-    ]
-    return variants[idx % len(variants)]
-
-
-def chaos_line(day: dict[str, Any], spice: int, idx: int) -> str:
-    if day['indoor_count'] and day['count'] > 1:
-        variants = [
-            "Between the outdoor ambition and indoor iron diplomacy, it was a full day of disciplined chaos.",
-            "Between the fresh air and the indoor consequences, you built a strangely balanced day of exertion.",
-            "It had everything: outdoor optimism, indoor stubbornness, and a complete disregard for sitting still.",
-        ]
-        return variants[idx % len(variants)]
-    if day['count'] >= 3:
-        variants = [
-            "It was a full day of disciplined chaos, which is a very elegant way of telling your legs they don't get voting rights.",
-            "By the end of it, the whole day had the energy of a well-organized mutiny against comfort.",
-            "Taken together, it looked less like a schedule and more like a carefully managed argument with fatigue.",
-        ]
-        return variants[idx % len(variants)]
-    if day['count'] == 2:
-        variants = [
-            "A tidy little two-part program of exertion, because apparently one bout of fatigue wasn't enough to make the point.",
-            "A neat double feature of movement, effort, and highly questionable respect for recovery.",
-            "Just enough variety to feel balanced, and just enough volume to feel mildly vindictive.",
-        ]
-        return variants[idx % len(variants)]
-    if spice >= 2:
-        variants = [
-            "A compact but committed burst of self-inflicted difficulty, because moderation clearly wasn't getting a vote.",
-            "Not a huge day on paper, but more than enough to remind the body who's making the bad decisions here.",
-            "A small but pointed contribution to the ongoing project of making fatigue feel deserved.",
-        ]
-        return variants[idx % len(variants)]
-    variants = [
-        "A respectable little dose of voluntary suffering.",
-        "A tidy bit of effort, lightly seasoned with unnecessary ambition.",
-        "Nothing outrageous — just a calm, competent flirtation with discomfort.",
-    ]
-    return variants[idx % len(variants)]
-
-
-def social_line(day: dict[str, Any], spice: int, idx: int = 0) -> str:
+def social_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
     kudos = day['best_kudos']
-    top = day['top_named']
     if not kudos:
         variants = [
-            "The public has wisely chosen not to encourage this further.",
-            "Mercifully, nobody has rushed in to validate the behaviour yet.",
-            "No kudos, which may be the closest thing to responsible adult supervision available here.",
+            "Nobody has rushed in to validate the behaviour, which may be the healthiest part of the whole story.",
+            "No kudos showed up, leaving the public technically innocent.",
+            "Mercifully, nobody decided this needed encouragement."
         ]
         return variants[idx % len(variants)]
     if spice >= 2:
         variants = [
-            f"{kudos} kudos suggests people support the behaviour; whether they should is another matter.",
-            f"The {kudos} kudos imply a surprising amount of public enthusiasm for this kind of thing.",
-            f"{kudos} people looked at this and thought, yes, let's encourage this further. Disturbing, but touching.",
-            f"Somehow this picked up {kudos} kudos, so the public remains fully complicit.",
+            f"{kudos} kudos suggests people are willing to encourage this sort of behaviour, which feels generous if not entirely responsible.",
+            f"The {kudos} kudos imply a surprising amount of public support for what was, at minimum, an avoidable amount of effort.",
+            f"Somehow this still collected {kudos} kudos, so the public remains fully complicit."
         ]
         return variants[idx % len(variants)]
     variants = [
-        f"{kudos} kudos suggests the behaviour has, somehow, public backing.",
-        f"The {kudos} kudos indicate that other people are willing to reward this kind of effort.",
-        f"Apparently that earned {kudos} kudos, so the public remains broadly supportive of your nonsense.",
-        f"That drew {kudos} kudos, which is really just community-enabled behaviour at this point.",
+        f"It still pulled in {kudos} kudos, so the public is broadly on board with your nonsense.",
+        f"The {kudos} kudos suggest this had more community support than it strictly needed.",
+        f"Apparently {kudos} people saw this and approved, which is honestly quite sweet."
+    ]
+    return variants[idx % len(variants)]
+
+
+def effort_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
+    count = day['count']
+    total_min = day['total_min']
+    total_km = day['total_km']
+    total_elev = day['total_elev']
+    if count == 1:
+        bits = [f"{total_min} moving minutes"]
+        if total_km > 0:
+            bits.append(f"{total_km} km")
+        if total_elev > 0:
+            bits.append(f"{total_elev} m of climbing")
+        joined = ', '.join(bits[:-1]) + (f", and {bits[-1]}" if len(bits) > 1 else bits[0])
+        variants = [
+            f"It wasn't an all-day epic, but {joined} is still a very respectable little commitment to tiredness.",
+            f"By the end of it, you'd stacked up {joined}, which is plenty if your goal was to make fatigue feel earned.",
+            f"That's {joined}, which is a neat amount of work for something that was presumably meant to fit into a normal day."
+        ]
+        return variants[idx % len(variants)]
+    variants = [
+        f"Taken together, it came to {count} activities and {total_min} moving minutes — basically a well-organized argument against sitting still.",
+        f"All together, you turned the day into {count} activities and {total_min} moving minutes of carefully scheduled inconvenience.",
+        f"By the time it was over, you'd piled up {count} activities and {total_min} moving minutes, which is a tidy little festival of exertion."
+    ]
+    return variants[idx % len(variants)]
+
+
+def opener_sentence(day: dict[str, Any], idx: int) -> str:
+    if day['count'] == 1:
+        first = day['summaries'][0]
+        sport = sport_label(first['sport'])
+        variants = {
+            'ride': [
+                "You opened the day with a ride, which is a very committed way to spend your free will.",
+                "Apparently a ride was how this day was going to begin, because moderation once again failed to make the guest list.",
+                "You started with a ride, which is a nice healthy habit if you ignore the part where it keeps making you tired."
+            ],
+            'run': [
+                "You somehow turned part of the day into a run, which remains one of the more honest ways to suffer in public.",
+                "You decided a run belonged in the schedule, because peace and quiet were clearly never serious contenders.",
+                "A run made it onto the agenda, which is always a bold way to announce that comfort can wait."
+            ],
+            'tennis': [
+                "You devoted part of the day to tennis, which is cardio wearing a blazer and pretending to be civilized.",
+                "Tennis made the schedule, because apparently regular exercise wasn't quite theatrical enough.",
+                "You found time for tennis, which is a charming way to disguise repeated sprinting as leisure."
+            ],
+            'weight training': [
+                "You carved out time for weight training, because even indoors you apparently still like negotiating with gravity.",
+                "Weight training entered the picture, which is what happens when a normal day needs more consequences.",
+                "You went for weight training, because simply existing in peace was never really the plan."
+            ],
+        }
+        return variants.get(sport, ["You managed to make exercise part of the day again, which feels consistent if not always wise."])[idx % 3]
+
+    sport_mix = join_names([sport_label(s) for s in day['sports']])
+    variants = [
+        f"You somehow turned the day into {sport_mix}, which is a fairly bold way to avoid being accused of taking it easy.",
+        f"At some point the schedule collected {sport_mix}, and from there the day had no real chance of staying normal.",
+        f"What started as an ordinary day ended up featuring {sport_mix}, which feels ambitious in a way your body probably noticed."
+    ]
+    return variants[idx % len(variants)]
+
+
+def kicker_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
+    if day['indoor_count'] and day['count'] > 1:
+        variants = [
+            "It had a pleasing mix of outdoor optimism and indoor refusal to choose peace.",
+            "Between the fresh air and the indoor consequences, the whole thing somehow felt almost balanced.",
+            "It was a nice blend of outside ambition and inside stubbornness, which is very on brand."
+        ]
+        return variants[idx % len(variants)]
+    if spice >= 2:
+        variants = [
+            "Disciplined, productive, and just unhinged enough to stay interesting.",
+            "Healthy enough to sound respectable, deranged enough to remain entertaining.",
+            "Objectively solid work, with just enough chaos around the edges to give it personality."
+        ]
+        return variants[idx % len(variants)]
+    variants = [
+        "All in all, a pretty decent little block of effort.",
+        "Taken together, it was annoyingly competent.",
+        "As these things go, it was a good day to be unnecessarily active."
     ]
     return variants[idx % len(variants)]
 
@@ -296,45 +269,29 @@ def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
         return "No recent Strava activity found. A bold commitment to mystery."
 
     idx = pattern_index(day, tone, spice)
-    title_bit = title_roast(day, spice, idx)
-    social = social_line(day, spice, idx)
+    opener = opener_sentence(day, idx)
+    effort = effort_sentence(day, spice, idx)
+    social = social_sentence(day, spice, idx)
+    kicker = kicker_sentence(day, spice, idx)
 
-    if day['count'] == 1:
-        opener = single_activity_opener(day, spice, idx)
-        chaos = chaos_line(day, spice, idx)
-        if tone == 'coach' or spice == 0:
-            return f"{opener} Solid work overall. {social}"
-        if tone == 'dry':
-            dry_bits = [
-                f"{opener} {social}",
-                f"{title_bit} {opener} {social}" if title_bit else f"{opener} {social}",
-                f"{opener} {chaos} {social}",
-            ]
-            return dry_bits[idx % len(dry_bits)]
-        variants = [
-            [opener, chaos, social],
-            [title_bit, opener, social] if title_bit else [social, opener, chaos],
-            [opener, social, chaos],
-            [chaos, opener, social],
-            [social, opener, title_bit] if title_bit else [social, chaos, opener],
-        ]
-        parts = variants[idx % len(variants)]
-        return ' '.join([p for p in parts if p])
-
-    opener = multi_activity_opener(day, idx)
-    chaos = chaos_line(day, spice, idx)
     if tone == 'coach' or spice == 0:
-        return f"{opener} you put together a solid day of training without completely losing the plot. {social}"
+        return f"{opener} {effort} {social}"
+
     if tone == 'dry':
-        return f"{opener} you logged {day['count']} activities and {day['total_min']} moving minutes, which is a very efficient way to remain tired. {social}"
-    variants = [
-        [opener, chaos, social],
-        [social, opener, chaos],
-        [opener, social, chaos],
-        [chaos, opener, social],
+        patterns = [
+            f"{opener} {effort} {social}",
+            f"{effort} {opener} {social}",
+            f"{opener} {social} {kicker}",
+        ]
+        return patterns[idx % len(patterns)]
+
+    patterns = [
+        f"{opener} {effort} {social}",
+        f"{social} {opener} {kicker}",
+        f"{opener} {kicker} {social}",
+        f"{effort} {social} {kicker}",
     ]
-    parts = variants[idx % len(variants)]
-    return ' '.join([p for p in parts if p])
+    return patterns[idx % len(patterns)]
 
 
 def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
