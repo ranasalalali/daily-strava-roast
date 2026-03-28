@@ -144,13 +144,13 @@ def pattern_index(day: dict[str, Any], tone: str, spice: int) -> int:
 def sport_label(sport: str) -> str:
     s = sport.lower()
     if 'run' in s:
-        return 'run'
+        return 'a run'
     if 'ride' in s or 'cycle' in s:
-        return 'ride'
+        return 'a ride'
     if 'tennis' in s:
-        return 'tennis'
+        return 'some tennis'
     if 'weight' in s:
-        return 'weight training'
+        return 'some weight training'
     return s
 
 
@@ -191,7 +191,7 @@ def effort_sentence(day: dict[str, Any], spice: int, idx: int) -> str:
             bits.append(f"{total_elev} m of climbing")
         joined = ', '.join(bits[:-1]) + (f", and {bits[-1]}" if len(bits) > 1 else bits[0])
         variants = [
-            f"It wasn't an all-day epic, but {joined} is still a very respectable little commitment to tiredness.",
+            f"It wasn't an all-day epic, but {joined} still adds up to a very respectable little commitment to tiredness.",
             f"By the end of it, you'd stacked up {joined}, which is plenty if your goal was to make fatigue feel earned.",
             f"That's {joined}, which is a neat amount of work for something that was presumably meant to fit into a normal day."
         ]
