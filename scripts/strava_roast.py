@@ -241,7 +241,7 @@ def opener_sentence(day: dict[str, Any], idx: int) -> str:
                 "You went for weight training, because simply existing in peace was never really the plan."
             ],
         }
-        return variants.get(sport, ["You managed to make exercise part of the day again, which feels consistent if not always wise."])[idx % 3]
+        choices = variants.get(sport, ["You managed to make exercise part of the day again, which feels consistent if not always wise."]); return choices[idx % len(choices)]
 
     sport_mix = join_names([sport_label(s) for s in day['sports']])
     variants = [
