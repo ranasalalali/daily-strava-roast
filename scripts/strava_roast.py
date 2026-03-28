@@ -290,7 +290,7 @@ def days_since(date_str: str | None) -> int | None:
 def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | None = None) -> str:
     gap = days_since(last_activity.get('start_date_local')) if last_activity else None
 
-    if gap is not None and gap > 120:
+    if gap is not None and gap >= 180:
         variants = [
             f"No activity today, and your last logged effort was {gap} days ago. At this point the training block hasn't gone quiet; it's entered folklore.",
             f"Still nothing today. The last Strava entry was {gap} days ago, which means your fitness narrative is now mostly oral tradition.",
@@ -299,12 +299,44 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
         ]
         return variants[(gap + spice) % len(variants)]
 
-    if gap is not None and gap > 30:
+    if gap is not None and gap >= 90:
+        variants = [
+            f"No activity today, and the last one was {gap} days ago. We're no longer in a quiet patch; we're in excavation season.",
+            f"Still quiet today. After {gap} days without a log, this has started to feel less like training and more like archive research.",
+            f"Nothing today, and the last workout was {gap} days ago. Even the motivation is probably covered in dust by now.",
+        ]
+        return variants[(gap + spice) % len(variants)]
+
+    if gap is not None and gap >= 30:
         variants = [
             f"No activity today, and the last one was {gap} days ago. This is starting to feel less like a rest block and more like witness protection for cardio.",
             f"Still quiet today. After {gap} days without a log, even Strava seems unsure whether to wait or move on.",
             f"Nothing today, and the last workout was {gap} days ago. The storyline hasn't ended, but it has definitely wandered off between seasons.",
             f"No activity today. A {gap}-day silence gives the whole feed the energy of an abandoned group project.",
+        ]
+        return variants[(gap + spice) % len(variants)]
+
+    if gap is not None and gap >= 14:
+        variants = [
+            f"No activity today, and it's been {gap} days since the last log. At this point 'rest day' is being asked to do some heroic work.",
+            f"Still nothing today. With a {gap}-day gap, this has graduated from recovery into a proper little disappearance.",
+            f"Nothing on Strava today, and the last activity was {gap} days ago. That is no longer a pause; it's a storyline choice.",
+        ]
+        return variants[(gap + spice) % len(variants)]
+
+    if gap is not None and gap >= 7:
+        variants = [
+            f"No activity today, and it's been {gap} days since the last one. That's long enough for the training plan to start looking over its shoulder.",
+            f"Still quiet today. A {gap}-day gap isn't dramatic yet, but it is starting to raise an eyebrow.",
+            f"Nothing logged today, and the last activity was {gap} days ago. We are now officially beyond 'busy week' territory.",
+        ]
+        return variants[(gap + spice) % len(variants)]
+
+    if gap is not None and gap >= 3:
+        variants = [
+            f"No activity today, and it's been {gap} days since the last one. Not alarming, just enough to make things mildly suspicious.",
+            f"Still quiet today. A {gap}-day gap is perfectly legal, though not especially convincing.",
+            f"Nothing logged today, and the last effort was {gap} days ago. We may be drifting from recovery into creative interpretation."
         ]
         return variants[(gap + spice) % len(variants)]
 
