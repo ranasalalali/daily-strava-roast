@@ -18,7 +18,26 @@ def _fmt_list(values: list[str]) -> str:
     return ", ".join(cleaned)
 
 
+def _activity_guidance(activity_count: int) -> list[str]:
+    if activity_count <= 0:
+        return [
+            "- There were no logged activities for this day.",
+            "- Roast the absence with restraint; do not pretend a workout happened.",
+            "- Keep the joke about rest, silence, stealth, or suspicious inactivity grounded in the missing activity.",
+        ]
+    if activity_count == 1:
+        return [
+            "- Focus on the single session instead of pretending there was an epic training block.",
+            "- Use one or two concrete details, not a full stat recital.",
+        ]
+    return [
+        "- Treat the day as one combined story, not separate mini-recaps.",
+        "- Mention the mix of activities only if it helps the joke.",
+    ]
+
+
 def build_roast_prompt(context: dict[str, Any]) -> str:
+    activity_count = int(context.get("activity_count", 0) or 0)
     totals = context.get("totals", {})
     effort = context.get("effort", {})
     hints = context.get("pattern_hints", {})
@@ -29,7 +48,7 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         "",
         "Context:",
         f"- date: {context.get('date') or 'unknown'}",
-        f"- activity_count: {context.get('activity_count', 0)}",
+        f"- activity_count: {activity_count}",
         f"- sports: {_fmt_list(context.get('sports', []))}",
         f"- dominant_sport: {context.get('dominant_sport') or 'none'}",
         f"- activity_names: {_fmt_list(context.get('activity_names', []))}",
@@ -46,11 +65,22 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         "",
         "Constraints:",
         "- Output exactly one paragraph.",
-        "- Do not use bullet points, labels, or quotation marks.",
+        "- Do not use bullet points, labels, or quotation marks in the final output.",
         "- Do not list every stat mechanically.",
         "- Weave in only the most relevant details.",
         "- Avoid sounding like a dashboard, coach app, or generic AI assistant.",
-        "- If there are repeated sports lately, hint at the pattern without sounding repetitive.",
-        "- Keep it sharp and readable.",
+        "- Keep it sharp, readable, and specific.",
     ]
+
+    lines.extend(_activity_guidance(activity_count))
+
+    if bool(hints.get("repeat_sport_recently", False)):
+        lines.append("- Hint at the repeated-sport pattern without repeating old phrasing.")
+    if int(hints.get("indoor_count", 0) or 0) > 0:
+        lines.append("- If useful, lightly acknowledge the indoor/trainer angle without overexplaining it.")
+    if style.get("tone") == "coach" or style.get("spice") == 0:
+        lines.append("- Keep the edge light; this should feel more encouraging than cruel.")
+    else:
+        lines.append("- Let the joke land, but keep it human and readable.")
+
     return "\n".join(lines)

@@ -10,7 +10,7 @@ sys.path.insert(0, str((ROOT / 'src').resolve()))
 from daily_strava_roast.prompt_builder import build_roast_prompt
 
 
-def main() -> int:
+def test_multi_activity_prompt() -> None:
     context = {
         'date': '2026-03-27',
         'activity_count': 2,
@@ -39,8 +39,79 @@ def main() -> int:
     prompt = build_roast_prompt(context)
     assert 'Write exactly one short paragraph' in prompt
     assert '- sports: run, tennis' in prompt
-    assert '- repeat_sport_recently: True' in prompt
+    assert '- Treat the day as one combined story' in prompt
+    assert '- Hint at the repeated-sport pattern without repeating old phrasing.' in prompt
     assert 'Avoid sounding like a dashboard' in prompt
+
+
+def test_single_activity_prompt() -> None:
+    context = {
+        'date': '2026-03-27',
+        'activity_count': 1,
+        'sports': ['run'],
+        'dominant_sport': 'run',
+        'activity_names': ['Lunch Run'],
+        'totals': {
+            'distance_km': 8.42,
+            'moving_minutes': 46,
+            'elevation_m': 66,
+            'kudos': 7,
+        },
+        'effort': {
+            'avg_hr': 154,
+            'max_hr': 171,
+        },
+        'pattern_hints': {
+            'indoor_count': 0,
+            'repeat_sport_recently': False,
+        },
+        'style': {
+            'tone': 'playful',
+            'spice': 2,
+        },
+    }
+    prompt = build_roast_prompt(context)
+    assert '- Focus on the single session instead of pretending there was an epic training block.' in prompt
+    assert '- Use one or two concrete details, not a full stat recital.' in prompt
+    assert '- Let the joke land, but keep it human and readable.' in prompt
+
+
+def test_no_activity_prompt() -> None:
+    context = {
+        'date': '2026-03-27',
+        'activity_count': 0,
+        'sports': [],
+        'dominant_sport': None,
+        'activity_names': [],
+        'totals': {
+            'distance_km': 0,
+            'moving_minutes': 0,
+            'elevation_m': 0,
+            'kudos': 0,
+        },
+        'effort': {
+            'avg_hr': None,
+            'max_hr': None,
+        },
+        'pattern_hints': {
+            'indoor_count': 0,
+            'repeat_sport_recently': False,
+        },
+        'style': {
+            'tone': 'dry',
+            'spice': 2,
+        },
+    }
+    prompt = build_roast_prompt(context)
+    assert '- There were no logged activities for this day.' in prompt
+    assert '- Roast the absence with restraint; do not pretend a workout happened.' in prompt
+    assert '- sports: none' in prompt
+
+
+def main() -> int:
+    test_multi_activity_prompt()
+    test_single_activity_prompt()
+    test_no_activity_prompt()
     print('prompt builder test passed')
     return 0
 
