@@ -289,23 +289,24 @@ def days_since(date_str: str | None) -> int | None:
 
 def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | None = None) -> str:
     gap = days_since(last_activity.get('start_date_local')) if last_activity else None
-    name = last_activity.get('name') if last_activity else None
 
     if gap is not None and gap > 120:
         variants = [
-            f"No Strava activity today, and the last recorded effort was {gap} days ago. At this point it's less a training gap and more an archaeological layer.",
-            f"Still nothing today. Your last logged activity was *{name}* {gap} days ago, which means even the kudos have probably had time to decompose.",
-            f"No activity today, and the last thing Strava remembers is from {gap} days ago. This is no longer a rest phase; it's historical fiction.",
+            f"No activity today, and your last logged effort was {gap} days ago. At this point the training block hasn't gone quiet; it's entered folklore.",
+            f"Still nothing today. The last Strava entry was {gap} days ago, which means your fitness narrative is now mostly oral tradition.",
+            f"No activity today. Your last recorded workout was {gap} days ago, so this has drifted well past recovery and into archaeology.",
+            f"Quiet again. With a {gap}-day gap since the last activity, Strava is less a training log and more a historical archive.",
         ]
-        return variants[spice % len(variants)]
+        return variants[(gap + spice) % len(variants)]
 
     if gap is not None and gap > 30:
         variants = [
-            f"No Strava activity today. The last logged effort was {gap} days ago, so this has drifted well past 'rest day' and into 'season finale'.",
-            f"Still quiet today, and your last activity was {gap} days ago. Respectfully, the storyline has gone cold.",
-            f"Nothing today, and the last recorded activity was {gap} days back. That is starting to feel less like recovery and more like witness protection.",
+            f"No activity today, and the last one was {gap} days ago. This is starting to feel less like a rest block and more like witness protection for cardio.",
+            f"Still quiet today. After {gap} days without a log, even Strava seems unsure whether to wait or move on.",
+            f"Nothing today, and the last workout was {gap} days ago. The storyline hasn't ended, but it has definitely wandered off between seasons.",
+            f"No activity today. A {gap}-day silence gives the whole feed the energy of an abandoned group project.",
         ]
-        return variants[spice % len(variants)]
+        return variants[(gap + spice) % len(variants)]
 
     if tone == 'coach' or spice == 0:
         variants = [
@@ -320,12 +321,14 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
             "Quiet day on Strava. Recovery is valid; disappearing completely is just dramatic.",
             "Nothing logged today. Very mature, very restful, very suspicious.",
             "No activity today. Your joints are thrilled, even if the roast economy is not.",
+            "Quiet feed, loud implications. Either this was recovery or a very clean getaway.",
         ]
         return variants[spice % len(variants)]
     variants = [
         "No Strava activity today. Rest day, stealth day, or admin day — all plausible.",
         "Nothing logged today. Maybe recovery, maybe mystery, maybe both.",
         "Quiet day on Strava. Not every plotline needs a training montage.",
+        "No activity today. A rare appearance from moderation, or at least something wearing its clothes.",
     ]
     return variants[spice % len(variants)]
 
