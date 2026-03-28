@@ -68,9 +68,12 @@ uv run --project {baseDir} daily-strava-roast prompt
 3. Ask the connected/default OpenClaw runtime model to write the final paragraph from that prompt.
 4. Before replying, sanity-check the generated paragraph:
    - exactly one paragraph
+   - one or two sentences max unless unusually short
    - no bullet points
    - no invented stats
+   - no stat dump; usually no more than two or three concrete metrics
    - not generic AI filler
+   - avoids pet phrases and over-clever wording
    - tone matches requested spice/tone closely enough
 5. If the paragraph fails those checks or generation is unavailable, fall back to:
 
@@ -85,6 +88,8 @@ Fall back immediately if any of these happen:
 - generated output is empty
 - generated output invents numbers, activities, or claims not present in the prompt/context
 - generated output is multiple paragraphs or list-like
+- generated output crams in too many stats without real comedic payoff
+- generated output leans on obvious pet phrases or polished LLM-clever wording
 - generated output is obviously generic, repetitive, or less readable than the deterministic roast
 
 When falling back:

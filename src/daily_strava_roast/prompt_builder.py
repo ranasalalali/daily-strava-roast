@@ -11,6 +11,16 @@ PROMPT_INTRO = (
 )
 
 
+AVOID_PHRASES = [
+    "personality trait",
+    "heroically in public",
+    "apparently",
+    "the internet",
+    "quietly nodded and moved on",
+    "suffered efficiently",
+]
+
+
 def _fmt_list(values: list[str]) -> str:
     cleaned = [v for v in values if v]
     if not cleaned:
@@ -65,11 +75,17 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         "",
         "Constraints:",
         "- Output exactly one paragraph.",
+        "- Keep it to one or two sentences max.",
+        "- Use at most two or three concrete stats unless one extreme stat is unusually funny.",
         "- Do not use bullet points, labels, or quotation marks in the final output.",
         "- Do not list every stat mechanically.",
         "- Weave in only the most relevant details.",
+        "- Prefer dry understatement over exaggerated cleverness.",
+        "- Prefer one clean joke over several stacked jokes.",
         "- Avoid sounding like a dashboard, coach app, or generic AI assistant.",
         "- Keep it sharp, readable, and specific.",
+        f"- Avoid these phrases unless truly unavoidable: {', '.join(AVOID_PHRASES)}.",
+        "- Vary sentence openings; do not sound like a reusable content template.",
     ]
 
     lines.extend(_activity_guidance(activity_count))

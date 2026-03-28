@@ -42,6 +42,9 @@ def test_multi_activity_prompt() -> None:
     assert '- Treat the day as one combined story' in prompt
     assert '- Hint at the repeated-sport pattern without repeating old phrasing.' in prompt
     assert 'Avoid sounding like a dashboard' in prompt
+    assert 'Keep it to one or two sentences max.' in prompt
+    assert 'Use at most two or three concrete stats' in prompt
+    assert 'Avoid these phrases unless truly unavoidable' in prompt
 
 
 def test_single_activity_prompt() -> None:
