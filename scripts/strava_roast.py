@@ -276,17 +276,17 @@ def social_line(day: dict[str, Any], spice: int, idx: int = 0) -> str:
         return variants[idx % len(variants)]
     if spice >= 2:
         variants = [
-            f"{kudos} kudos on *{top}* suggests people support the behaviour; whether they should is another matter.",
-            f"The {kudos} kudos on *{top}* imply a surprising amount of public enthusiasm for this kind of thing.",
-            f"{kudos} people looked at *{top}* and thought, yes, let's encourage this further. Disturbing, but touching.",
-            f"Somehow *{top}* picked up {kudos} kudos, so the public remains fully complicit.",
+            f"{kudos} kudos suggests people support the behaviour; whether they should is another matter.",
+            f"The {kudos} kudos imply a surprising amount of public enthusiasm for this kind of thing.",
+            f"{kudos} people looked at this and thought, yes, let's encourage this further. Disturbing, but touching.",
+            f"Somehow this picked up {kudos} kudos, so the public remains fully complicit.",
         ]
         return variants[idx % len(variants)]
     variants = [
-        f"{kudos} kudos on *{top}* suggests the behaviour has, somehow, public backing.",
-        f"The {kudos} kudos on *{top}* indicate that other people are willing to reward this kind of effort.",
-        f"Apparently *{top}* earned {kudos} kudos, so the public remains broadly supportive of your nonsense.",
-        f"*{top}* drew {kudos} kudos, which is really just community-enabled behaviour at this point.",
+        f"{kudos} kudos suggests the behaviour has, somehow, public backing.",
+        f"The {kudos} kudos indicate that other people are willing to reward this kind of effort.",
+        f"Apparently that earned {kudos} kudos, so the public remains broadly supportive of your nonsense.",
+        f"That drew {kudos} kudos, which is really just community-enabled behaviour at this point.",
     ]
     return variants[idx % len(variants)]
 
@@ -329,9 +329,9 @@ def roast_day(day: dict[str, Any], tone: str, spice: int) -> str:
         return f"{opener} you logged {day['count']} activities and {day['total_min']} moving minutes, which is a very efficient way to remain tired. {social}"
     variants = [
         [opener, chaos, social],
-        [title_bit, opener, social] if title_bit else [social, opener, chaos],
         [social, opener, chaos],
         [opener, social, chaos],
+        [chaos, opener, social],
     ]
     parts = variants[idx % len(variants)]
     return ' '.join([p for p in parts if p])
