@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from daily_strava_roast.context_builder import build_roast_context
+from daily_strava_roast.generator import GenerationFailedError, GenerationUnavailableError, generate_roast_paragraph
 from daily_strava_roast.prompt_builder import build_roast_prompt
 from daily_strava_roast.writer import write_roast_preview
 
@@ -23,7 +24,7 @@ DEFAULT_STATE_FILE = Path.home() / ".openclaw" / "workspace" / "daily-strava-roa
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
-    p.add_argument("command", choices=["summary", "roast", "context", "prompt", "preview"], nargs="?", default="roast")
+    p.add_argument("command", choices=["summary", "roast", "context", "prompt", "preview", "generate"], nargs="?", default="roast")
     p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
     p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
     p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
@@ -32,6 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
+    p.add_argument("--model-runner", default=os.getenv("DAILY_STRAVA_ROAST_MODEL_RUNNER"), help="Local model runner executable")
+    p.add_argument("--model", default=os.getenv("DAILY_STRAVA_ROAST_MODEL"), help="Model name passed to the runner")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
     return p
@@ -259,6 +262,19 @@ def main() -> int:
         context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
         prompt = build_roast_prompt(context)
         payload = write_roast_preview(context, prompt)
+    elif args.command == "generate":
+        state = load_state(state_file)
+        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        prompt = build_roast_prompt(context)
+        try:
+            payload = generate_roast_paragraph(
+                context,
+                prompt,
+                runner=args.model_runner,
+                model=args.model,
+            )
+        except (GenerationUnavailableError, GenerationFailedError) as exc:
+            raise SystemExit(f"generate failed: {exc}")
     else:
         payload = {
             "activity_count": daily["activity_count"],
@@ -267,7 +283,7 @@ def main() -> int:
             "roast": roast_block(activities, args.tone, args.spice),
         }
 
-    if args.command in {"prompt", "preview"}:
+    if args.command in {"prompt", "preview", "generate"}:
         print(payload)
     elif args.json or args.command in {"summary", "context"}:
         print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context"} else None))

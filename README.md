@@ -66,12 +66,14 @@ uv run --project . daily-strava-roast summary --json --pretty
 uv run --project . daily-strava-roast context --pretty
 uv run --project . daily-strava-roast prompt
 uv run --project . daily-strava-roast preview
+uv run --project . daily-strava-roast generate --model-runner ollama --model llama3.2
 ```
 
 V2 staging note:
 - `context` emits the structured roast context JSON
 - `prompt` emits the constrained prompt text built from that context
 - `preview` emits a local preview paragraph from the V2 context/prompt path
+- `generate` tries a real local model runner when explicitly configured
 - `roast` still uses the current deterministic generation path until the prompt shape feels right
 
 ## Script usage
