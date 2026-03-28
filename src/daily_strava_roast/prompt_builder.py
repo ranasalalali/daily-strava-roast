@@ -13,6 +13,7 @@ PROMPT_INTRO = (
 
 BANNED_PHRASES = [
     "personality trait",
+    "whole personality",
     "heroically in public",
     "apparently",
     "the internet",
@@ -91,6 +92,8 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         "- Avoid sounding like a dashboard, coach app, or generic AI assistant.",
         "- Keep it sharp, readable, and specific.",
         f"- Do not use these phrases or close variants: {', '.join(BANNED_PHRASES)}.",
+        "- Do not frame the workout as their whole personality, identity, relationship, or defining character trait unless the phrasing is genuinely fresh.",
+        "- Prefer joke targets like unnecessary seriousness, bland workout naming, public validation, hobby absurdity, or self-inflicted inconvenience.",
         "- Vary sentence openings; do not sound like a reusable content template.",
     ]
 

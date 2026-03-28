@@ -73,7 +73,7 @@ uv run --project {baseDir} daily-strava-roast prompt
    - no invented stats
    - no stat dump; usually no more than two concrete metrics unless a third really earns its place
    - not generic AI filler
-   - avoids banned phrases, pet phrases, and over-clever wording
+   - avoids banned phrases, stale identity/relationship jokes, pet phrases, and over-clever wording
    - avoids poetic or cosmic phrasing
    - tone matches requested spice/tone closely enough
 5. If the paragraph fails those checks or generation is unavailable, fall back to:
@@ -91,6 +91,7 @@ Fall back immediately if any of these happen:
 - generated output is multiple paragraphs or list-like
 - generated output crams in too many stats without real comedic payoff
 - generated output uses banned phrases or obvious close variants
+- generated output leans on stale identity, relationship, or defining-trait jokes
 - generated output leans on polished LLM-clever wording instead of dry mockery
 - generated output drifts into poetic, cosmic, or overly ornate phrasing
 - generated output is obviously generic, repetitive, or less readable than the deterministic roast
