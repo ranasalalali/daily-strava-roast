@@ -78,10 +78,13 @@ def recent_sports_context(state: dict[str, Any]) -> list[str]:
 
 
 def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_secret: str | None) -> dict[str, Any]:
-    if not client_secret:
-        return tokens
     if tokens.get("expires_at", 0) > int(time.time()) + 300:
         return tokens
+    if not client_secret:
+        raise RuntimeError(
+            "Strava access token is expired or near expiry, but STRAVA_CLIENT_SECRET is not set. "
+            "Set STRAVA_CLIENT_SECRET so the tool can refresh tokens by default."
+        )
     data = urllib.parse.urlencode({
         "client_id": client_id,
         "client_secret": client_secret,
