@@ -369,9 +369,10 @@ def no_activity_roast(tone: str, spice: int, last_activity: dict[str, Any] | Non
 
     if gap is not None and gap >= 7:
         variants = [
-            f"No activity today, and it's been {gap} days since the last one. That's long enough for the training plan to start looking over its shoulder.",
-            f"Still quiet today. A {gap}-day gap isn't dramatic yet, but it is starting to raise an eyebrow.",
-            f"Nothing logged today, and the last activity was {gap} days ago. We are now officially beyond 'busy week' territory.",
+            f"No activity today, and it's been {gap} days since the last one. That's no longer a blip; that's the beginning of a minor disappearance.",
+            f"Still quiet today. A {gap}-day gap is long enough for the training plan to start feeling ghosted.",
+            f"Nothing logged today, and the last activity was {gap} days ago. We are now comfortably beyond 'busy week' and into 'interesting silence' territory.",
+            f"No activity today. After {gap} days, this has started to look less like recovery and more like a deliberate vanishing act."
         ]
         return variants[(gap + spice) % len(variants)]
 
