@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from daily_strava_roast.context_builder import build_roast_context
+from daily_strava_roast.prompt_builder import build_roast_prompt
 
 DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_tokens.json"
 DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
@@ -21,7 +22,7 @@ DEFAULT_STATE_FILE = Path.home() / ".openclaw" / "workspace" / "daily-strava-roa
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
-    p.add_argument("command", choices=["summary", "roast", "context"], nargs="?", default="roast")
+    p.add_argument("command", choices=["summary", "roast", "context", "prompt"], nargs="?", default="roast")
     p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
     p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
     p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
@@ -248,6 +249,10 @@ def main() -> int:
     elif args.command == "context":
         state = load_state(state_file)
         payload = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+    elif args.command == "prompt":
+        state = load_state(state_file)
+        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        payload = build_roast_prompt(context)
     else:
         payload = {
             "activity_count": daily["activity_count"],
@@ -256,7 +261,9 @@ def main() -> int:
             "roast": roast_block(activities, args.tone, args.spice),
         }
 
-    if args.json or args.command in {"summary", "context"}:
+    if args.command == "prompt":
+        print(payload)
+    elif args.json or args.command in {"summary", "context"}:
         print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context"} else None))
     else:
         print(payload["roast"])

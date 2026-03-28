@@ -63,7 +63,14 @@ uv run --project . daily-strava-roast roast
 uv run --project . daily-strava-roast roast --tone playful --spice 3
 uv run --project . daily-strava-roast roast --tone coach --spice 0
 uv run --project . daily-strava-roast summary --json --pretty
+uv run --project . daily-strava-roast context --pretty
+uv run --project . daily-strava-roast prompt
 ```
+
+V2 staging note:
+- `context` emits the structured roast context JSON
+- `prompt` emits the constrained prompt text built from that context
+- `roast` still uses the current deterministic generation path until the prompt shape feels right
 
 ## Script usage
 
