@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str((ROOT / 'src').resolve()))
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 import strava_roast as sr  # type: ignore
