@@ -73,7 +73,7 @@ uv run --project . daily-strava-roast roast
 V2 staging note:
 - `context` emits the structured roast context JSON
 - `prompt` emits the constrained prompt text built from that context
-- `preview` emits a local preview paragraph from the V2 context/prompt path
+- `preview` emits a local preview paragraph from the V2 context/prompt path for prompt-shape evaluation
 - `generate` is an explicit local generation test path
 - `roast` remains deterministic in the packaged CLI
 - connected/default-model generation belongs to the OpenClaw runtime layer, not the standalone package CLI
