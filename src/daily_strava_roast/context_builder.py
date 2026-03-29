@@ -17,18 +17,38 @@ def summarize_sport_label(sport: str) -> str:
     return s
 
 
+def _recent_state_hints(recent_state: dict[str, Any] | None) -> tuple[list[str], list[str], list[str], list[str]]:
+    recent = (recent_state or {}).get("recent", [])
+    recent_sports: list[str] = []
+    recent_families: list[str] = []
+    recent_openings: list[str] = []
+    recent_targets: list[str] = []
+
+    for item in recent:
+        if not isinstance(item, dict):
+            continue
+        sports = item.get("sports", [])
+        if isinstance(sports, list):
+            recent_sports.extend([v for v in sports if isinstance(v, str)])
+        family = item.get("joke_family") or item.get("family")
+        if isinstance(family, str) and family:
+            recent_families.append(family)
+        opening = item.get("opening_style")
+        if isinstance(opening, str) and opening:
+            recent_openings.append(opening)
+        targets = item.get("joke_targets", [])
+        if isinstance(targets, list):
+            recent_targets.extend([v for v in targets if isinstance(v, str)])
+
+    return recent_sports, recent_families[-3:], recent_openings[-3:], recent_targets[-5:]
+
+
 def build_roast_context(day: dict[str, Any], tone: str, spice: int, recent_state: dict[str, Any] | None = None) -> dict[str, Any]:
     summaries = day.get("summaries", [])
     sport_labels = [summarize_sport_label(s.get("sport", "activity")) for s in summaries]
     counts = Counter(sport_labels)
     dominant_sport = counts.most_common(1)[0][0] if counts else None
-    recent = (recent_state or {}).get("recent", [])
-    recent_sports = []
-    for item in recent:
-        if isinstance(item, dict):
-            value = item.get("sports", [])
-            if isinstance(value, list):
-                recent_sports.extend([v for v in value if isinstance(v, str)])
+    recent_sports, recent_families, recent_openings, recent_targets = _recent_state_hints(recent_state)
 
     return {
         "date": day.get("date"),
@@ -49,6 +69,11 @@ def build_roast_context(day: dict[str, Any], tone: str, spice: int, recent_state
         "pattern_hints": {
             "indoor_count": day.get("indoor_count", 0),
             "repeat_sport_recently": any(s in recent_sports for s in day.get("sports", [])),
+        },
+        "roast_memory": {
+            "recent_families": recent_families,
+            "recent_openings": recent_openings,
+            "recent_targets": recent_targets,
         },
         "style": {
             "tone": tone,

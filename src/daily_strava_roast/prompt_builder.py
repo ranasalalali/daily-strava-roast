@@ -53,6 +53,7 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
     totals = context.get("totals", {})
     effort = context.get("effort", {})
     hints = context.get("pattern_hints", {})
+    memory = context.get("roast_memory", {})
     style = context.get("style", {})
     spice = int(style.get("spice", 3) or 0)
 
@@ -75,6 +76,9 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         f"- repeat_sport_recently: {bool(hints.get('repeat_sport_recently', False))}",
         f"- requested_tone: {style.get('tone', 'playful')}",
         f"- requested_spice: {spice}",
+        f"- recent_joke_families_to_avoid: {_fmt_list(memory.get('recent_families', []))}",
+        f"- recent_opening_styles_to_avoid: {_fmt_list(memory.get('recent_openings', []))}",
+        f"- recent_joke_targets_to_avoid: {_fmt_list(memory.get('recent_targets', []))}",
         "",
         "Constraints:",
         "- Output exactly one paragraph.",
@@ -94,6 +98,7 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         f"- Do not use these phrases or close variants: {', '.join(BANNED_PHRASES)}.",
         "- Do not frame the workout as their whole personality, identity, relationship, or defining character trait unless the phrasing is genuinely fresh.",
         "- Prefer joke targets like unnecessary seriousness, bland workout naming, public validation, hobby absurdity, or self-inflicted inconvenience.",
+        "- Avoid repeating recent joke families, opening styles, and joke targets when a fresh angle is available.",
         "- Vary sentence openings; do not sound like a reusable content template.",
     ]
 

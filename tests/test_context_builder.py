@@ -45,6 +45,7 @@ def main() -> int:
     assert ctx['dominant_sport'] in {'run', 'tennis'}
     assert ctx['totals']['distance_km'] == 13.65
     assert ctx['pattern_hints']['repeat_sport_recently'] is True
+    assert 'recent_families' in ctx['roast_memory']
     print('context builder test passed')
     return 0
 
