@@ -101,7 +101,7 @@ When falling back:
 - just return the deterministic roast text
 
 When working purely from the repo/CLI:
-- treat connected-model generation as a runtime concern, not a guaranteed packaged-CLI feature
+- treat connected-model generation as a runtime concern, not a packaged-CLI feature
 - keep the deterministic path working without extra runtime dependencies
 
 ## Inputs

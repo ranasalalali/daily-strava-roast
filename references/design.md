@@ -67,3 +67,5 @@ Do not publish or bundle:
 - build artifacts from previous releases
 
 The published skill should contain only the files needed for agent use, references, tests, and deterministic code paths.
+
+Avoid adding optional local-exec helper paths to the published package unless they are truly required for the supported public workflow.
