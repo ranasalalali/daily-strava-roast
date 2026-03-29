@@ -2,6 +2,12 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.2.3
+
+- sanitize activity names before they enter roast context/prompt construction
+- treat activity titles as untrusted labels in the prompt instructions
+- reduce indirect prompt-injection risk from externally sourced activity names
+
 ## 0.2.2
 
 - remove the optional local generator subprocess path from the published package
