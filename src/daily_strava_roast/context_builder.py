@@ -17,6 +17,15 @@ def summarize_sport_label(sport: str) -> str:
     return s
 
 
+def sanitize_activity_name(name: str, max_len: int = 80) -> str:
+    text = name.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    text = "".join(ch for ch in text if ch.isprintable())
+    text = " ".join(text.split())
+    if len(text) > max_len:
+        text = text[: max_len - 1].rstrip() + "…"
+    return text
+
+
 def _recent_state_hints(recent_state: dict[str, Any] | None) -> tuple[list[str], list[str], list[str], list[str]]:
     recent = (recent_state or {}).get("recent", [])
     recent_sports: list[str] = []
@@ -55,7 +64,7 @@ def build_roast_context(day: dict[str, Any], tone: str, spice: int, recent_state
         "activity_count": day.get("count", 0),
         "sports": sport_labels,
         "dominant_sport": dominant_sport,
-        "activity_names": [s.get("name") for s in summaries if s.get("name")],
+        "activity_names": [sanitize_activity_name(s.get("name")) for s in summaries if s.get("name")],
         "totals": {
             "distance_km": day.get("total_km", 0),
             "moving_minutes": day.get("total_min", 0),
