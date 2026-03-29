@@ -54,6 +54,16 @@ This skill should be usable by a scheduler later, so the roast output should be:
 ## Package vs runtime boundary
 
 Keep this distinction explicit:
-- the package/CLI owns deterministic fetch, rollup, context, prompt prep, preview, and stable fallback roast generation
+- the package/CLI owns deterministic fetch, local-day targeting, rollup, context, prompt prep, preview, and stable fallback roast generation
 - the OpenClaw runtime can own connected/default-model generation for the final paragraph when available
 - if the runtime generation path fails, use the deterministic roast rather than surfacing a brittle model error to the end user
+
+## Security / publish hygiene
+
+Do not publish or bundle:
+- local token files
+- local state snapshots unless intentionally sanitized
+- virtualenv directories
+- build artifacts from previous releases
+
+The published skill should contain only the files needed for agent use, references, tests, and deterministic code paths.

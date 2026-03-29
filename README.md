@@ -40,12 +40,14 @@ That keeps the implementation, local use, and eventual publication aligned in on
 ## Features
 
 - fetch recent Strava activity from a token file
+- target the local calendar day for daily roasts so no-activity days behave correctly
 - summarize the day instead of dumping raw activity lines
 - generate compact narrative roasts
 - adjustable tone: `dry`, `playful`, `savage`, `coach`
 - adjustable spice: `0..3` (default leans spicy)
 - smarter no-activity roasts based on inactivity gap
 - lightweight roast memory to reduce repetition over time
+- structured V2 context and prompt generation for runtime model use
 - JSON summary output for scripting
 
 ## Repo structure
@@ -90,20 +92,43 @@ python scripts/strava_roast.py summary --json --pretty
 
 ## Example output
 
+Deterministic roast example:
+
 ```text
-You opened the day with a ride, which is a very committed way to spend your free will. It wasn't an all-day epic, but 150 moving minutes, 56.95 km, and 733 m of climbing still adds up to a very respectable little commitment to tiredness. 10 kudos suggests people are willing to encourage this sort of behaviour, which feels generous if not entirely responsible.
+Morning Ride: 56.95 km of ride in 150 min. A creative new way to be tired for no financial reward.
+```
+
+Runtime V2 target example:
+
+```text
+Morning Ride sounds like you were trying to file 56.95 km and 733 m of climbing under casual admin, which is an impressively committed way to pretend this hobby isn't just organised self-inflicted inconvenience.
 ```
 
 ## Testing
 
 ```bash
 python tests/smoke_test.py
+python tests/test_context_builder.py
+python tests/test_prompt_builder.py
+python tests/test_target_day.py
+python tests/test_roast_memory.py
+python tests/test_generator.py
 ```
 
 CI checks:
 - CLI help
 - smoke test execution
 - package build
+
+## Publish hygiene
+
+Do not publish local runtime leftovers such as:
+- `.venv/`
+- `dist/`
+- `state/`
+- token files or any local secrets
+
+A small `.clawhubignore` is included to document the intended exclusions for ClawHub publishing.
 
 ## Design goals
 
