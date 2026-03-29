@@ -2,7 +2,7 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
-## 0.1.4
+## 0.2.0
 
 - merge the V2 branch into main
 - add deterministic daily target-date selection so no-activity days roast correctly
