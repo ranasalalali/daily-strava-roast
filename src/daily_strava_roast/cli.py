@@ -4,7 +4,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -21,11 +23,20 @@ DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-
 DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
 DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 DEFAULT_STATE_FILE = Path.home() / ".openclaw" / "workspace" / "daily-strava-roast" / "state" / "recent_roasts.json"
+DEFAULT_REAUTH_SCRIPT = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_auth.py"
+
+
+class StravaAuthError(RuntimeError):
+    pass
+
+
+class StravaDataUnavailableError(RuntimeError):
+    pass
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
-    p.add_argument("command", choices=["summary", "roast", "context", "prompt", "preview"], nargs="?", default="roast")
+    p.add_argument("command", choices=["summary", "roast", "context", "prompt", "preview", "auth-url"], nargs="?", default="roast")
     p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
     p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
     p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
@@ -35,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
     p.add_argument("--target-date", default=None, help="Local date to roast in YYYY-MM-DD format (defaults to today in Australia/Sydney)")
+    p.add_argument("--reauth-script", default=str(DEFAULT_REAUTH_SCRIPT), help="Path to Strava reauth helper script")
     p.add_argument("--json", action="store_true")
     p.add_argument("--pretty", action="store_true")
     return p
@@ -58,6 +70,20 @@ def load_state(path: Path) -> dict[str, Any]:
         return {"recent": []}
 
 
+def reauth_available(reauth_script: Path, client_secret: str | None) -> bool:
+    return reauth_script.exists() and bool(client_secret)
+
+
+def get_reauth_url(reauth_script: Path) -> str:
+    result = subprocess.run([
+        "python3",
+        str(reauth_script),
+    ], capture_output=True, text=True, timeout=30, check=False)
+    if result.returncode != 0:
+        raise StravaAuthError((result.stderr or result.stdout).strip() or "Failed to generate Strava reauth URL")
+    return result.stdout.strip()
+
+
 def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_secret: str | None) -> dict[str, Any]:
     if not client_secret:
         return tokens
@@ -70,8 +96,14 @@ def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_se
         "refresh_token": tokens["refresh_token"],
     }).encode()
     req = urllib.request.Request("https://www.strava.com/oauth/token", data=data, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        fresh = json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            fresh = json.load(r)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+        raise StravaAuthError(f"Strava token refresh failed ({exc.code}): {body or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise StravaDataUnavailableError(f"Strava token refresh unavailable: {exc.reason}") from exc
     save_tokens(path, fresh)
     return fresh
 
@@ -83,8 +115,39 @@ def fetch_activities(tokens: dict[str, Any], days: int, limit: int) -> list[dict
         f"https://www.strava.com/api/v3/athlete/activities?{query}",
         headers={"Authorization": f"Bearer {tokens['access_token']}"},
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+            raise StravaAuthError(f"Strava activity fetch failed with 401: {body or exc.reason}") from exc
+        body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+        raise StravaDataUnavailableError(f"Strava activity fetch failed ({exc.code}): {body or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise StravaDataUnavailableError(f"Strava activity fetch unavailable: {exc.reason}") from exc
+
+
+def fetch_activities_with_recovery(token_file: Path, client_id: str, client_secret: str | None, days: int, limit: int, reauth_script: Path) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    tokens = load_tokens(token_file)
+    recovery: dict[str, Any] | None = None
+
+    try:
+        tokens = refresh_tokens(tokens, token_file, client_id, client_secret)
+        return fetch_activities(tokens, days, limit), recovery
+    except StravaAuthError as first_auth_error:
+        try:
+            refreshed = refresh_tokens(tokens, token_file, client_id, client_secret)
+            return fetch_activities(refreshed, days, limit), recovery
+        except (StravaAuthError, StravaDataUnavailableError):
+            if reauth_available(reauth_script, client_secret):
+                recovery = {
+                    "status": "reauth_required",
+                    "auth_url": get_reauth_url(reauth_script),
+                    "error": str(first_auth_error),
+                }
+                raise StravaAuthError(str(first_auth_error))
+            raise
 
 
 def km(distance_m: float | None) -> float:
@@ -276,23 +339,70 @@ def roast_block(activities: list[dict[str, Any]], tone: str, spice: int, *, targ
     return "\n".join(lines)
 
 
+def auth_unavailable_message(error: Exception, recovery: dict[str, Any] | None = None) -> str:
+    if recovery and recovery.get("status") == "reauth_required":
+        return "Strava authentication needs reauthorisation before I can verify today's activity. This is not a confirmed rest day."
+    return f"Strava data unavailable due to authentication failure: {error}. This is not a confirmed rest day."
+
+
+def data_unavailable_message(error: Exception) -> str:
+    return f"Strava data is currently unavailable: {error}. This is not a confirmed rest day."
+
+
 def main() -> int:
     args = build_parser().parse_args()
     token_file = Path(args.token_file).expanduser()
     state_file = Path(args.state_file).expanduser()
-    tokens = load_tokens(token_file)
-    tokens = refresh_tokens(tokens, token_file, args.client_id, args.client_secret)
-    activities = fetch_activities(tokens, args.days, args.limit)
+    reauth_script = Path(args.reauth_script).expanduser()
+
+    if args.command == "auth-url":
+        payload: Any = {
+            "status": "reauth_available" if reauth_available(reauth_script, args.client_secret) else "reauth_unavailable",
+            "auth_url": get_reauth_url(reauth_script) if reauth_available(reauth_script, args.client_secret) else None,
+            "reauth_script": str(reauth_script),
+        }
+        if args.json or True:
+            print(json.dumps(payload, indent=2 if args.pretty or True else None))
+        return 0
+
+    recovery: dict[str, Any] | None = None
+    try:
+        activities, recovery = fetch_activities_with_recovery(token_file, args.client_id, args.client_secret, args.days, args.limit, reauth_script)
+    except StravaAuthError as exc:
+        payload = {
+            "status": "reauth_required" if recovery else "auth_unavailable",
+            "error": str(exc),
+            "reauth": recovery,
+            "roast": auth_unavailable_message(exc, recovery),
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2 if args.pretty else None))
+        else:
+            print(payload["roast"])
+        return 0
+    except StravaDataUnavailableError as exc:
+        payload = {
+            "status": "data_unavailable",
+            "error": str(exc),
+            "roast": data_unavailable_message(exc),
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2 if args.pretty else None))
+        else:
+            print(payload["roast"])
+        return 0
+
     daily = build_daily_payload(activities)
     target_date = resolve_target_date(args.target_date)
     target_day = select_target_day(daily, target_date)
     last_activity = find_last_activity(activities, target_date)
 
     if args.command == "summary":
-        payload: Any = daily
+        payload = {"status": "ok", **daily}
     elif args.command == "context":
         state = load_state(state_file)
         payload = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        payload["status"] = "ok"
         payload["target_date"] = target_date
         payload["has_activity_today"] = bool(target_day and target_day.get("count"))
         if last_activity and not payload["has_activity_today"]:
@@ -300,6 +410,7 @@ def main() -> int:
     elif args.command == "prompt":
         state = load_state(state_file)
         context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        context["status"] = "ok"
         context["target_date"] = target_date
         context["has_activity_today"] = bool(target_day and target_day.get("count"))
         if last_activity and not context["has_activity_today"]:
@@ -308,6 +419,7 @@ def main() -> int:
     elif args.command == "preview":
         state = load_state(state_file)
         context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        context["status"] = "ok"
         context["target_date"] = target_date
         context["has_activity_today"] = bool(target_day and target_day.get("count"))
         if last_activity and not context["has_activity_today"]:
@@ -316,6 +428,7 @@ def main() -> int:
         payload = write_roast_preview(context, prompt)
     else:
         payload = {
+            "status": "ok",
             "activity_count": daily["activity_count"],
             "target_date": target_date,
             "has_activity_today": bool(target_day and target_day.get("count")),
@@ -326,8 +439,8 @@ def main() -> int:
 
     if args.command in {"prompt", "preview"}:
         print(payload)
-    elif args.json or args.command in {"summary", "context"}:
-        print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context"} else None))
+    elif args.json or args.command in {"summary", "context", "auth-url"}:
+        print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context", "auth-url"} else None))
     else:
         print(payload["roast"])
     return 0
