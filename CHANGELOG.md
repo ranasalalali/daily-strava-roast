@@ -2,6 +2,16 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.1.4
+
+- merge the V2 branch into main
+- add deterministic daily target-date selection so no-activity days roast correctly
+- add structured V2 roast context and constrained prompt generation
+- add lightweight roast memory hints for recent joke families, openings, and targets
+- sharpen runtime prompt guidance for drier, meaner, less repetitive output
+- clarify package-vs-runtime boundaries in the skill and V2 docs
+- add focused regression coverage for prompt building, target-day behavior, generator behavior, and roast-memory hints
+
 ## 0.1.2
 
 - improve inactivity roast logic with better gap-based judgment
