@@ -50,3 +50,10 @@ This skill should be usable by a scheduler later, so the roast output should be:
 - concise
 - deterministic enough to test
 - still varied by tone and activity type
+
+## Package vs runtime boundary
+
+Keep this distinction explicit:
+- the package/CLI owns deterministic fetch, rollup, context, prompt prep, preview, and stable fallback roast generation
+- the OpenClaw runtime can own connected/default-model generation for the final paragraph when available
+- if the runtime generation path fails, use the deterministic roast rather than surfacing a brittle model error to the end user
