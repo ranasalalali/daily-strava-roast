@@ -2,6 +2,12 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.2.1
+
+- document publish hygiene and clean ClawHub bundle expectations
+- update README and V2 docs to reflect the shipped 0.2.x state
+- clarify security/publish guidance for excluding local state, virtualenvs, build artifacts, and secrets
+
 ## 0.2.0
 
 - merge the V2 branch into main
