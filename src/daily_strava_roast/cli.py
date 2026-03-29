@@ -8,8 +8,10 @@ import time
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from daily_strava_roast.context_builder import build_roast_context
 from daily_strava_roast.generator import GenerationFailedError, GenerationUnavailableError, generate_roast_paragraph
@@ -33,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
     p.add_argument("--spice", type=int, choices=[0, 1, 2, 3], default=3, help="Roast intensity from 0 (gentle) to 3 (scorched)")
     p.add_argument("--state-file", default=str(DEFAULT_STATE_FILE), help="Path to roast memory state file")
+    p.add_argument("--target-date", default=None, help="Local date to roast in YYYY-MM-DD format (defaults to today in Australia/Sydney)")
     p.add_argument("--model-runner", default=os.getenv("DAILY_STRAVA_ROAST_MODEL_RUNNER"), help="Local model runner executable for explicit generate tests")
     p.add_argument("--model", default=os.getenv("DAILY_STRAVA_ROAST_MODEL"), help="Model name passed to the runner")
     p.add_argument("--json", action="store_true")
@@ -148,6 +151,42 @@ def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
     return {"activity_count": len(summaries), "days": days}
 
 
+def resolve_target_date(target_date: str | None) -> str:
+    if target_date:
+        return target_date
+    return datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()
+
+
+def select_target_day(daily: dict[str, Any], target_date: str) -> dict[str, Any] | None:
+    for day in daily.get("days", []):
+        if day.get("date") == target_date:
+            return day.get("rollup")
+    return None
+
+
+def build_empty_day(target_date: str) -> dict[str, Any]:
+    return {
+        "date": target_date,
+        "count": 0,
+        "names": [],
+        "sports": [],
+        "total_km": 0.0,
+        "total_min": 0,
+        "total_elev": 0,
+        "total_kudos": 0,
+        "indoor_count": 0,
+        "summaries": [],
+    }
+
+
+def find_last_activity(activities: list[dict[str, Any]], target_date: str) -> dict[str, Any] | None:
+    summaries = [summarize_activity(a) for a in activities]
+    for summary in summaries:
+        if date_key(summary) < target_date:
+            return summary
+    return summaries[0] if summaries else None
+
+
 def line_for_run(s: dict[str, Any], tone: str, spice: int) -> str:
     base = f"{s['name']}: {s['distance_km']} km in {s['moving_min']} min"
     if tone == 'coach':
@@ -222,16 +261,18 @@ def overall_line(summaries: list[dict[str, Any]], spice: int) -> str:
     return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Nicely done."
 
 
-def roast_block(activities: list[dict[str, Any]], tone: str, spice: int) -> str:
-    if not activities:
-        if spice >= 3:
-            return "No recent Strava activity. Elite dedication to stealth mode."
-        if spice == 2:
-            return "No recent Strava activity found. Either rest day, or you buried the evidence well."
-        if spice == 1:
-            return "No recent Strava activity found. Recovery day or suspiciously quiet behaviour."
-        return "No recent Strava activity found. Rest counts too."
+def roast_block(activities: list[dict[str, Any]], tone: str, spice: int, *, target_date: str | None = None) -> str:
     summaries = [summarize_activity(a) for a in activities]
+    if target_date:
+        summaries = [s for s in summaries if date_key(s) == target_date]
+    if not summaries:
+        if spice >= 3:
+            return "No Strava activity today. Elite dedication to stealth mode."
+        if spice == 2:
+            return "No Strava activity today. Either rest day, or you buried the evidence well."
+        if spice == 1:
+            return "No Strava activity today. Recovery day or suspiciously quiet behaviour."
+        return "No Strava activity today. Rest counts too."
     lines = [roast_line(s, tone, spice) for s in summaries]
     if len(summaries) > 1:
         lines.append(overall_line(summaries, spice))
@@ -246,25 +287,43 @@ def main() -> int:
     tokens = refresh_tokens(tokens, token_file, args.client_id, args.client_secret)
     activities = fetch_activities(tokens, args.days, args.limit)
     daily = build_daily_payload(activities)
-    latest_day = daily["days"][0]["rollup"] if daily["days"] else None
+    target_date = resolve_target_date(args.target_date)
+    target_day = select_target_day(daily, target_date)
+    last_activity = find_last_activity(activities, target_date)
 
     if args.command == "summary":
         payload: Any = daily
     elif args.command == "context":
         state = load_state(state_file)
-        payload = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        payload = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        payload["target_date"] = target_date
+        payload["has_activity_today"] = bool(target_day and target_day.get("count"))
+        if last_activity and not payload["has_activity_today"]:
+            payload["last_activity"] = last_activity
     elif args.command == "prompt":
         state = load_state(state_file)
-        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        context["target_date"] = target_date
+        context["has_activity_today"] = bool(target_day and target_day.get("count"))
+        if last_activity and not context["has_activity_today"]:
+            context["last_activity"] = last_activity
         payload = build_roast_prompt(context)
     elif args.command == "preview":
         state = load_state(state_file)
-        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        context["target_date"] = target_date
+        context["has_activity_today"] = bool(target_day and target_day.get("count"))
+        if last_activity and not context["has_activity_today"]:
+            context["last_activity"] = last_activity
         prompt = build_roast_prompt(context)
         payload = write_roast_preview(context, prompt)
     elif args.command == "generate":
         state = load_state(state_file)
-        context = build_roast_context(latest_day or {}, args.tone, args.spice, state)
+        context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
+        context["target_date"] = target_date
+        context["has_activity_today"] = bool(target_day and target_day.get("count"))
+        if last_activity and not context["has_activity_today"]:
+            context["last_activity"] = last_activity
         prompt = build_roast_prompt(context)
         try:
             payload = generate_roast_paragraph(
@@ -278,9 +337,11 @@ def main() -> int:
     else:
         payload = {
             "activity_count": daily["activity_count"],
+            "target_date": target_date,
+            "has_activity_today": bool(target_day and target_day.get("count")),
             "tone": args.tone,
             "spice": args.spice,
-            "roast": roast_block(activities, args.tone, args.spice),
+            "roast": roast_block(activities, args.tone, args.spice, target_date=target_date),
         }
 
     if args.command in {"prompt", "preview", "generate"}:
