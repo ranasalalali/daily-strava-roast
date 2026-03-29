@@ -2,6 +2,13 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.2.2
+
+- remove the optional local generator subprocess path from the published package
+- remove the `generate` CLI command and related test coverage
+- tighten docs so the package remains clearly deterministic-first
+- reduce scanner suspicion by removing unnecessary local-exec surface area
+
 ## 0.2.1
 
 - document publish hygiene and clean ClawHub bundle expectations
