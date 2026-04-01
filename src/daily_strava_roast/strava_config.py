@@ -34,6 +34,12 @@ def load_strava_app_config(config_path: str | Path | None = None) -> dict[str, A
 
 def missing_config_requirements(config: dict[str, Any]) -> list[str]:
     missing: list[str] = []
+    if not config.get("client_id"):
+        missing.append("client_id")
     if not config.get("client_secret"):
         missing.append("client_secret")
     return missing
+
+
+def config_status(config: dict[str, Any]) -> str:
+    return "ready" if not missing_config_requirements(config) else "config_incomplete"

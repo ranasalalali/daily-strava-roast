@@ -22,11 +22,17 @@ def main() -> int:
         cli.StravaInitialSetupRequiredError('token file missing'),
         {'status': 'initial_setup_required'},
     )
+    config_msg = cli.auth_unavailable_message(
+        cli.StravaAuthError('Strava client_secret is not configured'),
+        {'status': 'config_incomplete'},
+    )
     data_msg = cli.data_unavailable_message(cli.StravaDataUnavailableError('network timeout'))
     assert 'not a confirmed rest day' in auth_msg.lower()
     assert 'authentication failure' in auth_msg.lower()
     assert 'reauthorisation' in recovery_msg.lower()
     assert 'initial setup' in setup_msg.lower()
+    assert 'configuration' in config_msg.lower()
+    assert 'client credentials' in config_msg.lower()
     assert 'not a confirmed rest day' in data_msg.lower()
     assert cli.reauth_available(Path('/tmp/definitely-missing-script.py'), {'client_secret': 'secret'}) is False
 

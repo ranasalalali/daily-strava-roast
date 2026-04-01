@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 from daily_strava_roast.context_builder import build_roast_context
 from daily_strava_roast.prompt_builder import build_roast_prompt
-from daily_strava_roast.strava_config import load_strava_app_config, missing_config_requirements
+from daily_strava_roast.strava_config import config_status, load_strava_app_config, missing_config_requirements
 from daily_strava_roast.writer import write_roast_preview
 
 DEFAULT_STATE_FILE = Path.home() / ".openclaw" / "workspace" / "daily-strava-roast" / "state" / "recent_roasts.json"
@@ -149,6 +149,7 @@ def build_recovery_payload(config: dict[str, Any], reauth_script: Path, error: E
         "error": str(error),
         "config_path": config["config_path"],
         "config_present": config["config_present"],
+        "config_status": config_status(config),
         "missing_requirements": missing_config_requirements(config),
         "token_file": config["token_file"],
         "reauth_script": str(reauth_script),
@@ -170,6 +171,10 @@ def fetch_activities_with_recovery(config: dict[str, Any], days: int, limit: int
         tokens = refresh_tokens(tokens, token_file, config["client_id"], config["client_secret"])
     except StravaInitialSetupRequiredError as exc:
         recovery = build_recovery_payload(config, reauth_script, exc, status="initial_setup_required")
+        raise
+    except StravaAuthError as exc:
+        if missing_config_requirements(config):
+            recovery = build_recovery_payload(config, reauth_script, exc, status="config_incomplete")
         raise
 
     try:
@@ -335,6 +340,8 @@ def roast_block(activities: list[dict[str, Any]], tone: str, spice: int, *, targ
 def auth_unavailable_message(error: Exception, recovery: dict[str, Any] | None = None) -> str:
     if recovery and recovery.get("status") == "initial_setup_required":
         return "Strava initial setup is missing or incomplete, so I can't verify today's activity yet. Please complete the initial Strava connection first."
+    if recovery and recovery.get("status") == "config_incomplete":
+        return "Strava app configuration is missing or incomplete, so automatic token refresh is unavailable. Add the Strava app client credentials first."
     if recovery and recovery.get("status") == "reauth_required":
         return "Strava authentication needs reauthorisation before I can verify today's activity. This is not a confirmed rest day."
     return f"Strava data unavailable due to authentication failure: {error}. This is not a confirmed rest day."
@@ -362,6 +369,7 @@ def main() -> int:
         payload: Any = {
             "status": "reauth_available" if available else "reauth_unavailable",
             "setup_status": setup_status,
+            "config_status": config_status(config),
             "auth_url": get_reauth_url(reauth_script) if available else None,
             "reauth_script": str(reauth_script),
             "config_path": config["config_path"],
@@ -383,6 +391,7 @@ def main() -> int:
             "reauth": recovery,
             "config_path": config["config_path"],
             "config_present": config["config_present"],
+            "config_status": config_status(config),
             "missing_requirements": missing_config_requirements(config),
             "token_file": config["token_file"],
             "roast": auth_unavailable_message(exc, recovery),
