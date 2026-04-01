@@ -25,15 +25,27 @@ uv run --project . daily-strava-roast summary --json --pretty
 
 ## Strava auth behaviour
 
-This CLI is designed to be hands-off after initial setup:
+This CLI is designed to be hands-off after initial setup.
 
+Canonical config locations:
+- app credentials: `~/.openclaw/secure/strava_app.json`
+- tokens: `~/.openclaw/workspace/agents/tars-fit/strava_tokens.json`
+
+Expected behaviour:
 - if the token file exists and includes a valid `refresh_token`, expired access tokens are refreshed automatically
 - if the activity fetch still returns `401`, the CLI forces one refresh and retries once
 - if there is no token file, invalid token JSON, or required token fields are missing, the CLI returns `status: initial_setup_required`
+- if the token file exists but app credentials are missing/incomplete, the CLI returns `status: config_incomplete`
 - if refresh still fails after setup exists, the CLI returns `status: reauth_required`
+
+Operational guidance:
+- prefer the secure JSON config over shell startup files or ad hoc sourced env vars
+- treat `~/.openclaw/secure/strava_app.json` as the one canonical place for Strava app credentials
+- do not commit secrets or token files
 
 That gives an agent a reliable machine-readable split between:
 - **first-time setup needed**
+- **app config incomplete**
 - **manual reauthorisation needed**
 - **temporary Strava/network failure**
 

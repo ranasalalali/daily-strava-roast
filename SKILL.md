@@ -119,10 +119,13 @@ And by default the token file is:
 ```
 
 Normal auth behaviour:
+- treat `~/.openclaw/secure/strava_app.json` as the canonical app-credentials source
 - if setup already exists, expired access tokens should refresh automatically using the refresh token
 - if Strava still returns 401, retry once after a forced refresh
 - if the token file is missing, invalid, or missing required fields, treat that as **initial setup required** and tell the user clearly
+- if the token file exists but app credentials are missing or incomplete, return **config_incomplete** clearly
 - if setup exists but refresh/reauthorisation is needed, return the reauth-required path instead of pretending it is a rest day
+- avoid depending on sourced shell profiles for routine auth
 
 Use this to inspect auth readiness:
 
