@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -13,20 +13,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / 'src'
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 from daily_strava_roast.context_builder import build_roast_context
+from daily_strava_roast.strava_config import load_strava_app_config
 
 DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_tokens.json"
-DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
-DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 DEFAULT_STATE_FILE = Path.home() / '.openclaw' / 'workspace' / 'daily-strava-roast' / 'state' / 'recent_roasts.json'
 
 
 def build_parser() -> argparse.ArgumentParser:
+    config = load_strava_app_config()
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
     p.add_argument("command", choices=["summary", "roast", "context"], nargs="?", default="roast")
-    p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
-    p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
-    p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
+    p.add_argument("--token-file", default=config.get("token_file") or str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
+    p.add_argument("--client-id", default=config.get("client_id") or "216808")
+    p.add_argument("--client-secret", default=config.get("client_secret"), help="Prefer the secure config at ~/.openclaw/secure/strava_app.json")
     p.add_argument("--days", type=int, default=2, help="Look back N days for recent activity")
     p.add_argument("--limit", type=int, default=6, help="Max activities to fetch")
     p.add_argument("--lookback-limit", type=int, default=30, help="How many activities to scan when looking for the last recorded activity")
@@ -86,8 +91,8 @@ def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_se
         return tokens
     if not client_secret:
         raise RuntimeError(
-            "Strava access token is expired or near expiry, but STRAVA_CLIENT_SECRET is not set. "
-            "Set STRAVA_CLIENT_SECRET so the tool can refresh tokens by default."
+            "Strava access token is expired or near expiry, but no Strava client_secret is configured. "
+            "Add it to ~/.openclaw/secure/strava_app.json or pass --client-secret explicitly."
         )
     data = urllib.parse.urlencode({
         "client_id": client_id,

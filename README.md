@@ -41,6 +41,7 @@ Expected behaviour:
 Operational guidance:
 - prefer the secure JSON config over shell startup files or ad hoc sourced env vars
 - treat `~/.openclaw/secure/strava_app.json` as the one canonical place for Strava app credentials
+- both the packaged CLI and the legacy script should read from that secure config by default
 - do not commit secrets or token files
 
 That gives an agent a reliable machine-readable split between:
