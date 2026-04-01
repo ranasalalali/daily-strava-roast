@@ -33,12 +33,7 @@ uv run --project {baseDir} daily-strava-roast prompt
 uv run --project {baseDir} daily-strava-roast roast
 ```
 
-Legacy script usage is still valid when needed:
-
-```bash
-python {baseDir}/scripts/strava_roast.py roast
-python {baseDir}/scripts/strava_roast.py summary --json --pretty
-```
+Do not rely on the removed legacy script path. Use the packaged CLI commands only.
 
 ## Runtime guidance
 

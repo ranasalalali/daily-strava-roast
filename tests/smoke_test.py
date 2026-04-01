@@ -7,20 +7,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str((ROOT / 'src').resolve()))
-sys.path.insert(0, str(ROOT / 'scripts'))
 
-import strava_roast as sr  # type: ignore
+import daily_strava_roast.cli as cli
 
 
 def main() -> int:
     activities = json.loads((ROOT / 'tests' / 'fixtures' / 'sample_activities.json').read_text())
-    payload = sr.build_daily_payload(activities)
+    payload = cli.build_daily_payload(activities)
     assert payload['activity_count'] == 2
     assert payload['days'][0]['rollup']['count'] == 2
 
-    roast = sr.roast_day(payload['days'][0]['rollup'], 'playful', 2)
+    roast = cli.roast_block(activities, 'playful', 2, target_date='2026-03-27')
     assert isinstance(roast, str) and len(roast) > 40
-    assert '*' in roast or 'chaos' in roast or 'kudos' in roast
+    assert 'Lunch Run' in roast or 'Evening Tennis' in roast
+    assert 'Overall:' in roast
 
     print('smoke test passed')
     return 0

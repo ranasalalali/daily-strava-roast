@@ -2,6 +2,13 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.2.4
+
+- retire the legacy `scripts/strava_roast.py` path and standardize on the packaged CLI only
+- make `~/.openclaw/secure/strava_app.json` the documented canonical source for Strava app credentials
+- improve auth-state reporting for initial setup, config-incomplete, and reauth-required cases
+- align TARS-Fit docs and runtime usage around the secure config flow
+
 ## 0.2.3
 
 - sanitize activity names before they enter roast context/prompt construction

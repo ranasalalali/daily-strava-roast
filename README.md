@@ -84,7 +84,6 @@ That keeps the implementation, local use, and eventual publication aligned in on
 ## Repo structure
 
 - `SKILL.md` — agent instructions
-- `scripts/strava_roast.py` — bundled script used by the skill
 - `src/daily_strava_roast/cli.py` — packaged CLI entrypoint
 - `references/design.md` — design notes and roast heuristics
 - `tests/smoke_test.py` — fixture-based smoke test
@@ -109,15 +108,6 @@ V2 staging note:
 - `roast` remains deterministic in the packaged CLI
 - connected/default-model generation belongs to the OpenClaw runtime skill layer, not the standalone package CLI
 - the intended runtime flow is: `context` -> `prompt` -> connected model paragraph -> fallback to deterministic `roast` when needed
-
-## Script usage
-
-```bash
-python scripts/strava_roast.py roast
-python scripts/strava_roast.py roast --tone playful --spice 3
-python scripts/strava_roast.py roast --tone dry --spice 1
-python scripts/strava_roast.py summary --json --pretty
-```
 
 ## Example output
 
