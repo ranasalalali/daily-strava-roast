@@ -106,16 +106,34 @@ When working purely from the repo/CLI:
 
 ## Inputs
 
-By default the Strava token file is:
+By default the skill reads Strava app config from:
+
+```bash
+~/.openclaw/secure/strava_app.json
+```
+
+And by default the token file is:
 
 ```bash
 ~/.openclaw/workspace/agents/tars-fit/strava_tokens.json
 ```
 
-Override with:
+Normal auth behaviour:
+- if setup already exists, expired access tokens should refresh automatically using the refresh token
+- if Strava still returns 401, retry once after a forced refresh
+- if the token file is missing, invalid, or missing required fields, treat that as **initial setup required** and tell the user clearly
+- if setup exists but refresh/reauthorisation is needed, return the reauth-required path instead of pretending it is a rest day
+
+Use this to inspect auth readiness:
 
 ```bash
-uv run --project {baseDir} daily-strava-roast roast --token-file /path/to/strava_tokens.json
+uv run --project {baseDir} daily-strava-roast auth-url
+```
+
+Use JSON mode when another agent needs machine-readable status:
+
+```bash
+uv run --project {baseDir} daily-strava-roast roast --json --pretty
 ```
 
 ## Tones

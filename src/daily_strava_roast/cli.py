@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import time
 import urllib.error
@@ -17,11 +16,9 @@ from zoneinfo import ZoneInfo
 
 from daily_strava_roast.context_builder import build_roast_context
 from daily_strava_roast.prompt_builder import build_roast_prompt
+from daily_strava_roast.strava_config import load_strava_app_config, missing_config_requirements
 from daily_strava_roast.writer import write_roast_preview
 
-DEFAULT_TOKEN_FILE = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_tokens.json"
-DEFAULT_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID", "216808")
-DEFAULT_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 DEFAULT_STATE_FILE = Path.home() / ".openclaw" / "workspace" / "daily-strava-roast" / "state" / "recent_roasts.json"
 DEFAULT_REAUTH_SCRIPT = Path.home() / ".openclaw" / "workspace" / "agents" / "tars-fit" / "strava_auth.py"
 
@@ -34,12 +31,14 @@ class StravaDataUnavailableError(RuntimeError):
     pass
 
 
+class StravaInitialSetupRequiredError(StravaAuthError):
+    pass
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate a daily Strava roast from recent activity.")
     p.add_argument("command", choices=["summary", "roast", "context", "prompt", "preview", "auth-url"], nargs="?", default="roast")
-    p.add_argument("--token-file", default=str(DEFAULT_TOKEN_FILE), help="Path to strava token JSON")
-    p.add_argument("--client-id", default=DEFAULT_CLIENT_ID)
-    p.add_argument("--client-secret", default=DEFAULT_CLIENT_SECRET)
+    p.add_argument("--config-file", default=None, help="Path to secure Strava app config JSON")
     p.add_argument("--days", type=int, default=2, help="Look back N days for recent activity")
     p.add_argument("--limit", type=int, default=6, help="Max activities to fetch")
     p.add_argument("--tone", choices=["dry", "playful", "savage", "coach"], default="playful")
@@ -53,7 +52,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def load_tokens(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError as exc:
+        raise StravaInitialSetupRequiredError(
+            f"Strava token file not found at {path}. Initial Strava setup is required."
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise StravaInitialSetupRequiredError(
+            f"Strava token file at {path} is invalid JSON. Re-run initial Strava setup."
+        ) from exc
 
 
 def save_tokens(path: Path, data: dict[str, Any]) -> None:
@@ -70,25 +78,32 @@ def load_state(path: Path) -> dict[str, Any]:
         return {"recent": []}
 
 
-def reauth_available(reauth_script: Path, client_secret: str | None) -> bool:
-    return reauth_script.exists() and bool(client_secret)
+def reauth_available(reauth_script: Path, config: dict[str, Any]) -> bool:
+    return reauth_script.exists() and not missing_config_requirements(config)
 
 
 def get_reauth_url(reauth_script: Path) -> str:
-    result = subprocess.run([
-        "python3",
-        str(reauth_script),
-    ], capture_output=True, text=True, timeout=30, check=False)
+    result = subprocess.run(["python3", str(reauth_script)], capture_output=True, text=True, timeout=30, check=False)
     if result.returncode != 0:
         raise StravaAuthError((result.stderr or result.stdout).strip() or "Failed to generate Strava reauth URL")
     return result.stdout.strip()
 
 
-def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_secret: str | None) -> dict[str, Any]:
+def validate_token_shape(tokens: dict[str, Any], path: Path) -> None:
+    required = ["access_token", "refresh_token", "expires_at"]
+    missing = [key for key in required if key not in tokens or tokens.get(key) in (None, "")]
+    if missing:
+        raise StravaInitialSetupRequiredError(
+            f"Strava token file at {path} is missing required field(s): {', '.join(missing)}. Initial Strava setup is required."
+        )
+
+
+def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_secret: str | None, *, force: bool = False) -> dict[str, Any]:
+    validate_token_shape(tokens, path)
+    if not force and tokens.get("expires_at", 0) > int(time.time()) + 300:
+        return tokens
     if not client_secret:
-        return tokens
-    if tokens.get("expires_at", 0) > int(time.time()) + 300:
-        return tokens
+        raise StravaAuthError("Strava client_secret is not configured")
     data = urllib.parse.urlencode({
         "client_id": client_id,
         "client_secret": client_secret,
@@ -104,6 +119,7 @@ def refresh_tokens(tokens: dict[str, Any], path: Path, client_id: str, client_se
         raise StravaAuthError(f"Strava token refresh failed ({exc.code}): {body or exc.reason}") from exc
     except urllib.error.URLError as exc:
         raise StravaDataUnavailableError(f"Strava token refresh unavailable: {exc.reason}") from exc
+    validate_token_shape(fresh, path)
     save_tokens(path, fresh)
     return fresh
 
@@ -119,35 +135,55 @@ def fetch_activities(tokens: dict[str, Any], days: int, limit: int) -> list[dict
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)
     except urllib.error.HTTPError as exc:
-        if exc.code == 401:
-            body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
-            raise StravaAuthError(f"Strava activity fetch failed with 401: {body or exc.reason}") from exc
         body = exc.read().decode("utf-8", errors="replace") if hasattr(exc, "read") else ""
+        if exc.code == 401:
+            raise StravaAuthError(f"Strava activity fetch failed with 401: {body or exc.reason}") from exc
         raise StravaDataUnavailableError(f"Strava activity fetch failed ({exc.code}): {body or exc.reason}") from exc
     except urllib.error.URLError as exc:
         raise StravaDataUnavailableError(f"Strava activity fetch unavailable: {exc.reason}") from exc
 
 
-def fetch_activities_with_recovery(token_file: Path, client_id: str, client_secret: str | None, days: int, limit: int, reauth_script: Path) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
-    tokens = load_tokens(token_file)
+def build_recovery_payload(config: dict[str, Any], reauth_script: Path, error: Exception, *, status: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "status": status,
+        "error": str(error),
+        "config_path": config["config_path"],
+        "config_present": config["config_present"],
+        "missing_requirements": missing_config_requirements(config),
+        "token_file": config["token_file"],
+        "reauth_script": str(reauth_script),
+        "reauth_available": reauth_available(reauth_script, config),
+    }
+    if payload["reauth_available"]:
+        payload["auth_url"] = get_reauth_url(reauth_script)
+    else:
+        payload["auth_url"] = None
+    return payload
+
+
+def fetch_activities_with_recovery(config: dict[str, Any], days: int, limit: int, reauth_script: Path) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    token_file = Path(config["token_file"]).expanduser()
     recovery: dict[str, Any] | None = None
+    tokens = load_tokens(token_file)
 
     try:
-        tokens = refresh_tokens(tokens, token_file, client_id, client_secret)
+        tokens = refresh_tokens(tokens, token_file, config["client_id"], config["client_secret"])
+    except StravaInitialSetupRequiredError as exc:
+        recovery = build_recovery_payload(config, reauth_script, exc, status="initial_setup_required")
+        raise
+
+    try:
         return fetch_activities(tokens, days, limit), recovery
     except StravaAuthError as first_auth_error:
         try:
-            refreshed = refresh_tokens(tokens, token_file, client_id, client_secret)
+            refreshed = refresh_tokens(tokens, token_file, config["client_id"], config["client_secret"], force=True)
             return fetch_activities(refreshed, days, limit), recovery
-        except (StravaAuthError, StravaDataUnavailableError):
-            if reauth_available(reauth_script, client_secret):
-                recovery = {
-                    "status": "reauth_required",
-                    "auth_url": get_reauth_url(reauth_script),
-                    "error": str(first_auth_error),
-                }
-                raise StravaAuthError(str(first_auth_error))
+        except StravaInitialSetupRequiredError as exc:
+            recovery = build_recovery_payload(config, reauth_script, exc, status="initial_setup_required")
             raise
+        except StravaAuthError:
+            recovery = build_recovery_payload(config, reauth_script, first_auth_error, status="reauth_required")
+            raise StravaAuthError(str(first_auth_error)) from first_auth_error
 
 
 def km(distance_m: float | None) -> float:
@@ -200,14 +236,7 @@ def build_daily_payload(activities: list[dict[str, Any]]) -> dict[str, Any]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for summary in summaries:
         grouped[date_key(summary)].append(summary)
-    days = [
-        {
-            "date": key,
-            "activities": items,
-            "rollup": aggregate_day(items),
-        }
-        for key, items in sorted(grouped.items(), reverse=True)
-    ]
+    days = [{"date": key, "activities": items, "rollup": aggregate_day(items)} for key, items in sorted(grouped.items(), reverse=True)]
     return {"activity_count": len(summaries), "days": days}
 
 
@@ -225,18 +254,7 @@ def select_target_day(daily: dict[str, Any], target_date: str) -> dict[str, Any]
 
 
 def build_empty_day(target_date: str) -> dict[str, Any]:
-    return {
-        "date": target_date,
-        "count": 0,
-        "names": [],
-        "sports": [],
-        "total_km": 0.0,
-        "total_min": 0,
-        "total_elev": 0,
-        "total_kudos": 0,
-        "indoor_count": 0,
-        "summaries": [],
-    }
+    return {"date": target_date, "count": 0, "names": [], "sports": [], "total_km": 0.0, "total_min": 0, "total_elev": 0, "total_kudos": 0, "indoor_count": 0, "summaries": []}
 
 
 def find_last_activity(activities: list[dict[str, Any]], target_date: str) -> dict[str, Any] | None:
@@ -249,75 +267,54 @@ def find_last_activity(activities: list[dict[str, Any]], target_date: str) -> di
 
 def line_for_run(s: dict[str, Any], tone: str, spice: int) -> str:
     base = f"{s['name']}: {s['distance_km']} km in {s['moving_min']} min"
-    if tone == 'coach':
-        return base + ". Useful work. Now try to recover like someone who plans to run again this century."
-    if tone == 'dry':
-        return base + ". A concise little appointment with gravity and self-imposed inconvenience."
-    if spice >= 3:
-        return base + f" with {s['elev_m']} m climbing. Remarkable commitment to making your own life harder on purpose."
-    if spice == 2:
-        return base + ". Efficient, uncomfortable, and exactly the kind of idea your legs will remember tomorrow."
-    if spice == 1:
-        return base + f" with {s['kudos']} kudos. Cardio, but make it publicly auditable."
+    if tone == 'coach': return base + ". Useful work. Now try to recover like someone who plans to run again this century."
+    if tone == 'dry': return base + ". A concise little appointment with gravity and self-imposed inconvenience."
+    if spice >= 3: return base + f" with {s['elev_m']} m climbing. Remarkable commitment to making your own life harder on purpose."
+    if spice == 2: return base + ". Efficient, uncomfortable, and exactly the kind of idea your legs will remember tomorrow."
+    if spice == 1: return base + f" with {s['kudos']} kudos. Cardio, but make it publicly auditable."
     return base + ". Nice work. Mildly heroic, acceptably unhinged."
 
 
 def line_for_tennis(s: dict[str, Any], tone: str, spice: int) -> str:
     base = f"{s['name']}: {s['moving_min']} min of tennis"
-    if spice >= 3:
-        return base + ". Competitive cardio disguised as leisure. A classic scam."
-    if spice == 2:
-        return base + ". Just enough running to be annoying, not enough to count as honesty."
-    if spice == 1:
-        return base + f" with {s['kudos']} kudos. Elegant little sprint intervals in polite clothing."
+    if spice >= 3: return base + ". Competitive cardio disguised as leisure. A classic scam."
+    if spice == 2: return base + ". Just enough running to be annoying, not enough to count as honesty."
+    if spice == 1: return base + f" with {s['kudos']} kudos. Elegant little sprint intervals in polite clothing."
     return base + ". Solid session. Civilized suffering with a racket."
 
 
 def line_for_weights(s: dict[str, Any], tone: str, spice: int) -> str:
     base = f"{s['name']}: {s['moving_min']} min of weight training"
-    if tone == 'coach':
-        return base + ". Good. Lift the weight, keep the ego on a shorter leash."
-    if spice >= 3:
-        return base + ". Zero kilometres, maximum theatrical tension."
-    if spice == 2:
-        return base + ". Same room, same iron, same refusal to choose peace."
-    if spice == 1:
-        return base + ". Honest work. No scenery, just reps and consequences."
+    if tone == 'coach': return base + ". Good. Lift the weight, keep the ego on a shorter leash."
+    if spice >= 3: return base + ". Zero kilometres, maximum theatrical tension."
+    if spice == 2: return base + ". Same room, same iron, same refusal to choose peace."
+    if spice == 1: return base + ". Honest work. No scenery, just reps and consequences."
     return base + ". Strong, sensible, and only moderately feral."
 
 
 def generic_line(s: dict[str, Any], tone: str, spice: int) -> str:
     sport = s['sport'].lower()
     base = f"{s['name']}: {s['distance_km']} km of {sport} in {s['moving_min']} min"
-    if spice >= 3:
-        return base + ". A creative new way to be tired for no financial reward."
-    if spice == 2:
-        return base + ". Public evidence that questionable judgment and endurance remain close friends."
-    if spice == 1:
-        return base + ". Respectable effort, lightly seasoned with chaos."
+    if spice >= 3: return base + ". A creative new way to be tired for no financial reward."
+    if spice == 2: return base + ". Public evidence that questionable judgment and endurance remain close friends."
+    if spice == 1: return base + ". Respectable effort, lightly seasoned with chaos."
     return base + ". Nice little outing."
 
 
 def roast_line(summary: dict[str, Any], tone: str, spice: int) -> str:
     sport = summary['sport'].lower()
-    if 'run' in sport:
-        return line_for_run(summary, tone, spice)
-    if 'tennis' in sport:
-        return line_for_tennis(summary, tone, spice)
-    if 'weight' in sport or summary['trainer']:
-        return line_for_weights(summary, tone, spice)
+    if 'run' in sport: return line_for_run(summary, tone, spice)
+    if 'tennis' in sport: return line_for_tennis(summary, tone, spice)
+    if 'weight' in sport or summary['trainer']: return line_for_weights(summary, tone, spice)
     return generic_line(summary, tone, spice)
 
 
 def overall_line(summaries: list[dict[str, Any]], spice: int) -> str:
     total_km = round(sum(s['distance_km'] for s in summaries), 2)
     total_min = sum(s['moving_min'] for s in summaries)
-    if spice >= 3:
-        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. An impressive amount of voluntary wear and tear."
-    if spice == 2:
-        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Productive, disciplined, and a little bit deranged."
-    if spice == 1:
-        return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. A productive little festival of exertion."
+    if spice >= 3: return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. An impressive amount of voluntary wear and tear."
+    if spice == 2: return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Productive, disciplined, and a little bit deranged."
+    if spice == 1: return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. A productive little festival of exertion."
     return f"Overall: {total_km} km across {len(summaries)} activities and {total_min} moving minutes. Nicely done."
 
 
@@ -326,20 +323,18 @@ def roast_block(activities: list[dict[str, Any]], tone: str, spice: int, *, targ
     if target_date:
         summaries = [s for s in summaries if date_key(s) == target_date]
     if not summaries:
-        if spice >= 3:
-            return "No Strava activity today. Elite dedication to stealth mode."
-        if spice == 2:
-            return "No Strava activity today. Either rest day, or you buried the evidence well."
-        if spice == 1:
-            return "No Strava activity today. Recovery day or suspiciously quiet behaviour."
+        if spice >= 3: return "No Strava activity today. Elite dedication to stealth mode."
+        if spice == 2: return "No Strava activity today. Either rest day, or you buried the evidence well."
+        if spice == 1: return "No Strava activity today. Recovery day or suspiciously quiet behaviour."
         return "No Strava activity today. Rest counts too."
     lines = [roast_line(s, tone, spice) for s in summaries]
-    if len(summaries) > 1:
-        lines.append(overall_line(summaries, spice))
+    if len(summaries) > 1: lines.append(overall_line(summaries, spice))
     return "\n".join(lines)
 
 
 def auth_unavailable_message(error: Exception, recovery: dict[str, Any] | None = None) -> str:
+    if recovery and recovery.get("status") == "initial_setup_required":
+        return "Strava initial setup is missing or incomplete, so I can't verify today's activity yet. Please complete the initial Strava connection first."
     if recovery and recovery.get("status") == "reauth_required":
         return "Strava authentication needs reauthorisation before I can verify today's activity. This is not a confirmed rest day."
     return f"Strava data unavailable due to authentication failure: {error}. This is not a confirmed rest day."
@@ -351,45 +346,54 @@ def data_unavailable_message(error: Exception) -> str:
 
 def main() -> int:
     args = build_parser().parse_args()
-    token_file = Path(args.token_file).expanduser()
+    config = load_strava_app_config(args.config_file)
     state_file = Path(args.state_file).expanduser()
     reauth_script = Path(args.reauth_script).expanduser()
 
     if args.command == "auth-url":
+        available = reauth_available(reauth_script, config)
+        missing = missing_config_requirements(config)
+        setup_status = "ready"
+        token_file = Path(config["token_file"]).expanduser()
+        try:
+            validate_token_shape(load_tokens(token_file), token_file)
+        except StravaInitialSetupRequiredError:
+            setup_status = "initial_setup_required"
         payload: Any = {
-            "status": "reauth_available" if reauth_available(reauth_script, args.client_secret) else "reauth_unavailable",
-            "auth_url": get_reauth_url(reauth_script) if reauth_available(reauth_script, args.client_secret) else None,
+            "status": "reauth_available" if available else "reauth_unavailable",
+            "setup_status": setup_status,
+            "auth_url": get_reauth_url(reauth_script) if available else None,
             "reauth_script": str(reauth_script),
+            "config_path": config["config_path"],
+            "config_present": config["config_present"],
+            "token_file": config["token_file"],
+            "missing_requirements": missing,
         }
-        if args.json or True:
-            print(json.dumps(payload, indent=2 if args.pretty or True else None))
+        print(json.dumps(payload, indent=2))
         return 0
 
     recovery: dict[str, Any] | None = None
     try:
-        activities, recovery = fetch_activities_with_recovery(token_file, args.client_id, args.client_secret, args.days, args.limit, reauth_script)
-    except StravaAuthError as exc:
+        activities, recovery = fetch_activities_with_recovery(config, args.days, args.limit, reauth_script)
+    except (StravaInitialSetupRequiredError, StravaAuthError) as exc:
+        status = recovery.get("status") if recovery else "auth_unavailable"
         payload = {
-            "status": "reauth_required" if recovery else "auth_unavailable",
+            "status": status,
             "error": str(exc),
             "reauth": recovery,
+            "config_path": config["config_path"],
+            "config_present": config["config_present"],
+            "missing_requirements": missing_config_requirements(config),
+            "token_file": config["token_file"],
             "roast": auth_unavailable_message(exc, recovery),
         }
-        if args.json:
-            print(json.dumps(payload, indent=2 if args.pretty else None))
-        else:
-            print(payload["roast"])
+        if args.json: print(json.dumps(payload, indent=2 if args.pretty else None))
+        else: print(payload["roast"])
         return 0
     except StravaDataUnavailableError as exc:
-        payload = {
-            "status": "data_unavailable",
-            "error": str(exc),
-            "roast": data_unavailable_message(exc),
-        }
-        if args.json:
-            print(json.dumps(payload, indent=2 if args.pretty else None))
-        else:
-            print(payload["roast"])
+        payload = {"status": "data_unavailable", "error": str(exc), "roast": data_unavailable_message(exc)}
+        if args.json: print(json.dumps(payload, indent=2 if args.pretty else None))
+        else: print(payload["roast"])
         return 0
 
     daily = build_daily_payload(activities)
@@ -405,16 +409,14 @@ def main() -> int:
         payload["status"] = "ok"
         payload["target_date"] = target_date
         payload["has_activity_today"] = bool(target_day and target_day.get("count"))
-        if last_activity and not payload["has_activity_today"]:
-            payload["last_activity"] = last_activity
+        if last_activity and not payload["has_activity_today"]: payload["last_activity"] = last_activity
     elif args.command == "prompt":
         state = load_state(state_file)
         context = build_roast_context(target_day or build_empty_day(target_date), args.tone, args.spice, state)
         context["status"] = "ok"
         context["target_date"] = target_date
         context["has_activity_today"] = bool(target_day and target_day.get("count"))
-        if last_activity and not context["has_activity_today"]:
-            context["last_activity"] = last_activity
+        if last_activity and not context["has_activity_today"]: context["last_activity"] = last_activity
         payload = build_roast_prompt(context)
     elif args.command == "preview":
         state = load_state(state_file)
@@ -422,27 +424,14 @@ def main() -> int:
         context["status"] = "ok"
         context["target_date"] = target_date
         context["has_activity_today"] = bool(target_day and target_day.get("count"))
-        if last_activity and not context["has_activity_today"]:
-            context["last_activity"] = last_activity
-        prompt = build_roast_prompt(context)
-        payload = write_roast_preview(context, prompt)
+        if last_activity and not context["has_activity_today"]: context["last_activity"] = last_activity
+        payload = write_roast_preview(context, build_roast_prompt(context))
     else:
-        payload = {
-            "status": "ok",
-            "activity_count": daily["activity_count"],
-            "target_date": target_date,
-            "has_activity_today": bool(target_day and target_day.get("count")),
-            "tone": args.tone,
-            "spice": args.spice,
-            "roast": roast_block(activities, args.tone, args.spice, target_date=target_date),
-        }
+        payload = {"status": "ok", "activity_count": daily["activity_count"], "target_date": target_date, "has_activity_today": bool(target_day and target_day.get("count")), "tone": args.tone, "spice": args.spice, "roast": roast_block(activities, args.tone, args.spice, target_date=target_date)}
 
-    if args.command in {"prompt", "preview"}:
-        print(payload)
-    elif args.json or args.command in {"summary", "context", "auth-url"}:
-        print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context", "auth-url"} else None))
-    else:
-        print(payload["roast"])
+    if args.command in {"prompt", "preview"}: print(payload)
+    elif args.json or args.command in {"summary", "context", "auth-url"}: print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context", "auth-url"} else None))
+    else: print(payload["roast"])
     return 0
 
 

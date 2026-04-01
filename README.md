@@ -23,6 +23,20 @@ uv run --project . daily-strava-roast roast --tone playful --spice 3
 uv run --project . daily-strava-roast summary --json --pretty
 ```
 
+## Strava auth behaviour
+
+This CLI is designed to be hands-off after initial setup:
+
+- if the token file exists and includes a valid `refresh_token`, expired access tokens are refreshed automatically
+- if the activity fetch still returns `401`, the CLI forces one refresh and retries once
+- if there is no token file, invalid token JSON, or required token fields are missing, the CLI returns `status: initial_setup_required`
+- if refresh still fails after setup exists, the CLI returns `status: reauth_required`
+
+That gives an agent a reliable machine-readable split between:
+- **first-time setup needed**
+- **manual reauthorisation needed**
+- **temporary Strava/network failure**
+
 ## Why it exists
 
 There are already serious Strava integration and coaching skills.
@@ -40,6 +54,10 @@ That keeps the implementation, local use, and eventual publication aligned in on
 ## Features
 
 - fetch recent Strava activity from a token file
+- automatically refresh expired Strava access tokens using the stored refresh token
+- retry once after a Strava 401 before giving up
+- return a clear `initial_setup_required` status when first-time Strava setup is missing or incomplete
+- return a clear `reauth_required` status when manual reauthorisation is needed
 - target the local calendar day for daily roasts so no-activity days behave correctly
 - summarize the day instead of dumping raw activity lines
 - generate compact narrative roasts
