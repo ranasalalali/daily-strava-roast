@@ -78,6 +78,7 @@ That keeps the implementation, local use, and eventual publication aligned in on
 - adjustable spice: `0..3` (default leans spicy)
 - smarter no-activity roasts based on inactivity gap
 - lightweight roast memory to reduce repetition over time
+- richer recent-day roast state so future roasts can reference streaks, recent load, and prior-day context when it helps
 - structured V2 context and prompt generation for runtime model use
 - JSON summary output for scripting
 

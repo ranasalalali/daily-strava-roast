@@ -78,6 +78,50 @@ def load_state(path: Path) -> dict[str, Any]:
         return {"recent": []}
 
 
+def save_state(path: Path, state: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2) + "\n")
+
+
+def record_roast_state(path: Path, day: dict[str, Any], tone: str, spice: int, roast: str, *, metadata: dict[str, Any] | None = None) -> None:
+    state = load_state(path)
+    recent = state.get("recent")
+    if not isinstance(recent, list):
+        recent = []
+
+    summaries = day.get("summaries", [])
+    sport_labels = [str(s.get("sport")) for s in summaries if s.get("sport")]
+    activity_names = [str(s.get("name")) for s in summaries if s.get("name")]
+    dominant_sport = None
+    if summaries:
+        first = summaries[0].get("sport")
+        if isinstance(first, str):
+            dominant_sport = first.lower()
+
+    entry: dict[str, Any] = {
+        "at": datetime.now(ZoneInfo("UTC")).isoformat(),
+        "date": day.get("date"),
+        "sports": sport_labels,
+        "count": int(day.get("count", 0) or 0),
+        "tone": tone,
+        "spice": spice,
+        "distance_km": float(day.get("total_km", 0) or 0),
+        "moving_minutes": int(day.get("total_min", 0) or 0),
+        "elevation_m": int(day.get("total_elev", 0) or 0),
+        "kudos": int(day.get("total_kudos", 0) or 0),
+        "activity_names": activity_names,
+        "dominant_sport": dominant_sport,
+        "roast": roast,
+    }
+    if metadata:
+        for key, value in metadata.items():
+            entry[key] = value
+
+    recent.append(entry)
+    state["recent"] = recent[-14:]
+    save_state(path, state)
+
+
 def reauth_available(reauth_script: Path, config: dict[str, Any]) -> bool:
     return reauth_script.exists() and not missing_config_requirements(config)
 
@@ -436,7 +480,10 @@ def main() -> int:
         if last_activity and not context["has_activity_today"]: context["last_activity"] = last_activity
         payload = write_roast_preview(context, build_roast_prompt(context))
     else:
-        payload = {"status": "ok", "activity_count": daily["activity_count"], "target_date": target_date, "has_activity_today": bool(target_day and target_day.get("count")), "tone": args.tone, "spice": args.spice, "roast": roast_block(activities, args.tone, args.spice, target_date=target_date)}
+        roast_text = roast_block(activities, args.tone, args.spice, target_date=target_date)
+        payload = {"status": "ok", "activity_count": daily["activity_count"], "target_date": target_date, "has_activity_today": bool(target_day and target_day.get("count")), "tone": args.tone, "spice": args.spice, "roast": roast_text}
+        if target_day:
+            record_roast_state(state_file, target_day, args.tone, args.spice, roast_text)
 
     if args.command in {"prompt", "preview"}: print(payload)
     elif args.json or args.command in {"summary", "context", "auth-url"}: print(json.dumps(payload, indent=2 if args.pretty or args.command in {"summary", "context", "auth-url"} else None))
