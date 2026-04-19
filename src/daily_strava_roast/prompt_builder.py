@@ -53,9 +53,12 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
     totals = context.get("totals", {})
     effort = context.get("effort", {})
     hints = context.get("pattern_hints", {})
+    recent_context = context.get("recent_activity_context", {})
     memory = context.get("roast_memory", {})
     style = context.get("style", {})
     spice = int(style.get("spice", 3) or 0)
+    recent_load = hints.get("recent_load", {}) if isinstance(hints, dict) else {}
+    last_day = recent_context.get("last_day") if isinstance(recent_context, dict) else None
 
     lines = [
         PROMPT_INTRO,
@@ -74,6 +77,12 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         f"- max_hr: {effort.get('max_hr') if effort.get('max_hr') is not None else 'unknown'}",
         f"- indoor_count: {hints.get('indoor_count', 0)}",
         f"- repeat_sport_recently: {bool(hints.get('repeat_sport_recently', False))}",
+        f"- consecutive_same_sport_days: {hints.get('consecutive_same_sport_days', 0)}",
+        f"- recent_days_considered: {recent_context.get('days_considered', 0)}",
+        f"- recent_load_distance_vs_recent: {recent_load.get('distance_vs_recent', 'no_recent_context')}",
+        f"- recent_load_minutes_vs_recent: {recent_load.get('minutes_vs_recent', 'no_recent_context')}",
+        f"- recent_load_elevation_vs_recent: {recent_load.get('elevation_vs_recent', 'no_recent_context')}",
+        f"- previous_day_summary: {_fmt_list(last_day.get('activity_names', [])) if isinstance(last_day, dict) else 'none'}",
         f"- requested_tone: {style.get('tone', 'playful')}",
         f"- requested_spice: {spice}",
         f"- recent_joke_families_to_avoid: {_fmt_list(memory.get('recent_families', []))}",
@@ -102,12 +111,21 @@ def build_roast_prompt(context: dict[str, Any]) -> str:
         "- Prefer joke targets like unnecessary seriousness, bland workout naming, public validation, hobby absurdity, or self-inflicted inconvenience.",
         "- Avoid repeating recent joke families, opening styles, and joke targets when a fresh angle is available.",
         "- Vary sentence openings; do not sound like a reusable content template.",
+        "- When helpful, reference recent training context like repeated sport days, a heavier-than-usual day, a quieter-than-usual day, or a continuation from the previous day.",
+        "- Do not force historical context into every roast; use it only when it sharpens the joke.",
+        "- If you reference prior activity, keep it brief and anchored in the supplied recent context only.",
     ]
 
     lines.extend(_activity_guidance(activity_count))
 
     if bool(hints.get("repeat_sport_recently", False)):
         lines.append("- Hint at the repeated-sport pattern without repeating old phrasing.")
+    if int(hints.get("consecutive_same_sport_days", 0) or 0) >= 2:
+        lines.append("- Acknowledge the multi-day streak if it helps the joke; imply continuity rather than pretending today exists in isolation.")
+    if recent_load.get("distance_vs_recent") in {"well_above_recent", "above_recent"} or recent_load.get("minutes_vs_recent") in {"well_above_recent", "above_recent"}:
+        lines.append("- If useful, frame the day as a noticeable jump above the recent load rather than just another normal outing.")
+    if recent_load.get("distance_vs_recent") in {"well_below_recent", "below_recent"} and activity_count > 0:
+        lines.append("- If useful, frame the day as a lighter or quieter chapter compared with the recent pattern.")
     if int(hints.get("indoor_count", 0) or 0) > 0:
         lines.append("- If useful, lightly acknowledge the indoor/trainer angle without overexplaining it.")
     if style.get("tone") == "coach" or spice == 0:

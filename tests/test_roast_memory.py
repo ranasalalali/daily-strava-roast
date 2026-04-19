@@ -39,13 +39,27 @@ def main() -> int:
     state = {
         'recent': [
             {
+                'date': '2026-03-27',
                 'sports': ['Ride'],
+                'count': 1,
+                'distance_km': 40.0,
+                'moving_minutes': 110,
+                'elevation_m': 500,
+                'activity_names': ['Tempo Ride'],
+                'dominant_sport': 'ride',
                 'joke_family': 'naming-joke',
                 'opening_style': 'name-based opener',
                 'joke_targets': ['bland workout naming', 'public validation'],
             },
             {
+                'date': '2026-03-28',
                 'sports': ['Ride'],
+                'count': 1,
+                'distance_km': 42.0,
+                'moving_minutes': 120,
+                'elevation_m': 520,
+                'activity_names': ['Morning Ride'],
+                'dominant_sport': 'ride',
                 'joke_family': 'kudos-joke',
                 'opening_style': 'direct stat opener',
                 'joke_targets': ['self-inflicted inconvenience'],
@@ -55,9 +69,13 @@ def main() -> int:
     context = build_roast_context(day, 'playful', 3, state)
     prompt = build_roast_prompt(context)
     assert context['roast_memory']['recent_families'] == ['naming-joke', 'kudos-joke']
+    assert context['pattern_hints']['consecutive_same_sport_days'] == 2
+    assert context['recent_activity_context']['last_day']['activity_names'] == ['Morning Ride']
+    assert context['pattern_hints']['recent_load']['distance_vs_recent'] in {'above_recent', 'well_above_recent'}
     assert 'recent_joke_families_to_avoid: naming-joke, kudos-joke' in prompt
     assert 'recent_opening_styles_to_avoid: name-based opener, direct stat opener' in prompt
     assert 'Avoid repeating recent joke families, opening styles, and joke targets' in prompt
+    assert 'When helpful, reference recent training context like repeated sport days' in prompt
     print('roast memory test passed')
     return 0
 

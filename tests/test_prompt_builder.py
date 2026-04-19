@@ -30,6 +30,18 @@ def test_multi_activity_prompt() -> None:
         'pattern_hints': {
             'indoor_count': 0,
             'repeat_sport_recently': True,
+            'consecutive_same_sport_days': 2,
+            'recent_load': {
+                'distance_vs_recent': 'above_recent',
+                'minutes_vs_recent': 'well_above_recent',
+                'elevation_vs_recent': 'near_recent',
+            },
+        },
+        'recent_activity_context': {
+            'days_considered': 3,
+            'last_day': {
+                'activity_names': ['Morning Run'],
+            },
         },
         'style': {
             'tone': 'playful',
@@ -51,6 +63,9 @@ def test_multi_activity_prompt() -> None:
     assert 'Do not frame the workout as their whole personality, identity, relationship, or defining character trait' in prompt
     assert 'Prefer joke targets like unnecessary seriousness, bland workout naming, public validation, hobby absurdity, or self-inflicted inconvenience.' in prompt
     assert 'At spice 3, you may be sharper, meaner, and more judgmental' in prompt
+    assert 'When helpful, reference recent training context like repeated sport days' in prompt
+    assert 'Acknowledge the multi-day streak if it helps the joke' in prompt
+    assert 'frame the day as a noticeable jump above the recent load' in prompt
 
 
 def test_single_activity_prompt() -> None:
@@ -73,6 +88,16 @@ def test_single_activity_prompt() -> None:
         'pattern_hints': {
             'indoor_count': 0,
             'repeat_sport_recently': False,
+            'consecutive_same_sport_days': 0,
+            'recent_load': {
+                'distance_vs_recent': 'near_recent',
+                'minutes_vs_recent': 'near_recent',
+                'elevation_vs_recent': 'near_recent',
+            },
+        },
+        'recent_activity_context': {
+            'days_considered': 0,
+            'last_day': None,
         },
         'style': {
             'tone': 'playful',
@@ -105,6 +130,16 @@ def test_no_activity_prompt() -> None:
         'pattern_hints': {
             'indoor_count': 0,
             'repeat_sport_recently': False,
+            'consecutive_same_sport_days': 0,
+            'recent_load': {
+                'distance_vs_recent': 'no_recent_context',
+                'minutes_vs_recent': 'no_recent_context',
+                'elevation_vs_recent': 'no_recent_context',
+            },
+        },
+        'recent_activity_context': {
+            'days_considered': 0,
+            'last_day': None,
         },
         'style': {
             'tone': 'dry',
