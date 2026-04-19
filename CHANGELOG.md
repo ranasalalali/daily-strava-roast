@@ -2,6 +2,12 @@
 
 All notable changes to `daily-strava-roast` will be documented in this file.
 
+## 0.2.5
+
+- use richer recent-day roast memory so future roasts can reference streaks, recent load, and prior-day context more naturally
+- persist structured roast history state instead of relying mostly on prior roast text
+- improve prompt/context guidance to use recent training context when it actually sharpens the joke
+
 ## 0.2.4
 
 - retire the legacy `scripts/strava_roast.py` path and standardize on the packaged CLI only
